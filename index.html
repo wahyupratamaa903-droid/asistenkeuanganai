@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinAI - Asisten Keuangan</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    body { background: #0b0f19; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+  </style>
+</head>
+<body class="text-slate-200 text-xs min-h-screen flex flex-col justify-between p-2 md:p-4">
+
+  <header class="bg-slate-900 border border-slate-800 rounded-xl p-3.5 mb-3 flex items-center justify-between shadow-lg">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
+        <i class="fas fa-wallet"></i>
+      </div>
+      <div>
+        <h1 class="font-black text-sm text-slate-100 uppercase tracking-wide">FinAI Advisor</h1>
+        <p class="text-[10px] text-slate-400">Asisten Keuangan Pribadi & Budgeting</p>
+      </div>
+    </div>
+    <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-0.5 rounded-full font-mono">
+      ● ONLINE
+    </span>
+  </header>
+
+  <main id="chat-box" class="flex-1 bg-slate-900/60 border border-slate-800 rounded-xl p-3 space-y-3 overflow-y-auto max-h-[68vh] shadow-inner">
+    <div class="flex items-start gap-2">
+      <div class="w-6 h-6 rounded bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5">
+        <i class="fas fa-robot"></i>
+      </div>
+      <div class="bg-slate-800/80 border border-slate-700 p-2.5 rounded-xl text-slate-200 text-xs leading-relaxed max-w-[85%]">
+        Halo! Saya siap membantu mengatur anggaran bulanan, menghitung kebutuhan dana darurat, simulasi tabungan, atau evaluasi pengeluaran.
+      </div>
+    </div>
+  </main>
+
+  <footer class="mt-3 space-y-2">
+    <div class="flex gap-1.5 overflow-x-auto pb-1 text-[10px] no-scrollbar">
+      <button onclick="setPrompt('Hitung alokasi gaji bulanan dengan rumus 50/30/20')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
+        💡 Alokasi Gaji 50/30/20
+      </button>
+      <button onclick="setPrompt('Berapa nominal dana darurat yang ideal untuk saya?')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
+        🛡️ Hitung Dana Darurat
+      </button>
+      <button onclick="setPrompt('Tips sederhana memangkas pengeluaran harian')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
+        📊 Tips Hemat
+      </button>
+    </div>
+
+    <form onsubmit="handleSubmit(event)" class="flex gap-2">
+      <input type="text" id="user-input" placeholder="Tanyakan seputar keuangan pribadi..." required class="flex-1 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none">
+      <button type="submit" id="send-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1">
+        <span>Kirim</span>
+        <i class="fas fa-paper-plane text-[10px]"></i>
+      </button>
+    </form>
+  </footer>
+
+  <script>
+    const _k = atob("c2stb3ItdjEtOTJjMjU3ZTRkZDIxYzkyMjQxNjkwMmNiODVkYzE0ZDc0ZmQ0ZDRjNmI2MzcxNjA1ZmI2MWUwNTlhMDgyMzUzMg==");
+
+    let history = [
+      {
+        role: "system",
+        content: "Anda adalah asisten perencana keuangan pribadi yang ramah dan solutif. Berikan jawaban ringkas, terstruktur, dan gunakan poin-poin jelas."
+      }
+    ];
+
+    function appendMessage(role, content) {
+      const box = document.getElementById('chat-box');
+      const isUser = role === 'user';
+      const div = document.createElement('div');
+      div.className = `flex items-start gap-2 ${isUser ? 'flex-row-reverse' : ''}`;
+
+      const avatar = isUser
+        ? '<div class="w-6 h-6 rounded bg-emerald-600 text-white flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5"><i class="fas fa-user"></i></div>'
+        : '<div class="w-6 h-6 rounded bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] flex-shrink-0 mt-0.5"><i class="fas fa-robot"></i></div>';
+
+      const bubble = `
+        <div class="${isUser ? 'bg-emerald-600 text-white' : 'bg-slate-800/80 border border-slate-700 text-slate-200'} p-2.5 rounded-xl text-xs leading-relaxed max-w-[85%] whitespace-pre-wrap">
+          ${content}
+        </div>
+      `;
+
+      div.innerHTML = avatar + bubble;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function handleSubmit(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('user-input');
+      const btn = document.getElementById('send-btn');
+      const text = input.value.trim();
+      if (!text) return;
+
+      appendMessage('user', text);
+      history.push({ role: 'user', content: text });
+      input.value = '';
+      btn.disabled = true;
+
+      const loader = document.createElement('div');
+      loader.id = 'loading';
+      loader.className = 'text-[10px] text-slate-400 italic flex items-center gap-1.5';
+      loader.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Sedang menganalisis...';
+      document.getElementById('chat-box').appendChild(loader);
+
+      try {
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + _k
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.0-flash-001',
+            messages: history
+          })
+        });
+
+        const data = await res.json();
+        const reply = data.choices?.[0]?.message?.content || 'Maaf, belum ada respons.';
+        history.push({ role: 'assistant', content: reply });
+        appendMessage('assistant', reply);
+      } catch (err) {
+        appendMessage('assistant', 'Koneksi gagal. Periksa jaringan Anda.');
+      } finally {
+        const l = document.getElementById('loading');
+        if (l) l.remove();
+        btn.disabled = false;
+      }
+    }
+
+    function setPrompt(text) {
+      document.getElementById('user-input').value = text;
+      handleSubmit();
+    }
+  </script>
+</body>
+</html>
