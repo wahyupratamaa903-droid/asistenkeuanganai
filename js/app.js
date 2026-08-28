@@ -15,7 +15,73 @@ document.addEventListener('DOMContentLoaded', () => {
   initSpeechRecognition();
 });
 
-// 1. Filter Transaksi Periode
+// 1. Kompresi Gambar Otomatis via Canvas (Mencegah Payload Error)
+function compressImage(file, maxDimension = 1024, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDimension) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          }
+        } else {
+          if (height > maxDimension) {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedBase64);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+}
+
+// 2. Pembersih Format Angka Nominal dari AI
+function cleanNominal(val) {
+  if (typeof val === 'number') return val;
+  if (!val) return 0;
+  let str = String(val).replace(/[^0-9.,]/g, '').trim();
+  if (str.includes('.') && !str.includes(',')) {
+    const parts = str.split('.');
+    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+      str = str.replace(/\./g, '');
+    }
+  } else if (str.includes(',') && !str.includes('.')) {
+    const parts = str.split(',');
+    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+      str = str.replace(/,/g, '');
+    } else {
+      str = str.replace(',', '.');
+    }
+  } else if (str.includes('.') && str.includes(',')) {
+    if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
+      str = str.replace(/\./g, '').replace(',', '.');
+    } else {
+      str = str.replace(/,/g, '');
+    }
+  }
+  return parseFloat(str) || 0;
+}
+
+// 3. Filter Transaksi Periode
 function getFilteredTransactions() {
   const list = window.transactions || [];
   if (window.currentPeriod === 'all') return list;
@@ -64,7 +130,7 @@ function renderAll() {
   if (window.chartInstance) updateChartData();
 }
 
-// 2. Normalisasi Kata Angka Bahasa Indonesia
+// 4. Normalisasi Kata Angka Bahasa Indonesia
 function normalizeIndonesianWords(text) {
   let s = text.toLowerCase()
     .replace(/setengah juta/g, '500000')
@@ -83,7 +149,7 @@ function normalizeIndonesianWords(text) {
   return s;
 }
 
-// 3. Parser Transaksi Lokal
+// 5. Parser Transaksi Lokal
 function parseNaturalLanguage(rawText) {
   const normalized = normalizeIndonesianWords(rawText);
   const lower = normalized.toLowerCase().trim();
@@ -126,7 +192,7 @@ function parseNaturalLanguage(rawText) {
   return { description: desc.charAt(0).toUpperCase() + desc.slice(1), nominal, type, category };
 }
 
-// 4. Rekam Transaksi
+// 6. Rekam Transaksi
 function recordTransaction(item) {
   const now = Date.now();
   const trx = { 
@@ -144,7 +210,7 @@ function recordTransaction(item) {
   return trx;
 }
 
-// 5. Input Handler
+// 7. Input Handler
 async function handleUserInput(e) {
   if (e) e.preventDefault();
   const inputEl = document.getElementById('chat-input');
@@ -164,7 +230,7 @@ async function handleUserInput(e) {
   }
 }
 
-// 6. Speech Recognition
+// 8. Speech Recognition
 function initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SpeechRecognition) {
@@ -212,14 +278,16 @@ function appendChatMessage(role, text, id = null) {
   box.scrollTop = box.scrollHeight;
 }
 
-// 7. Request OpenRouter AI
+// 9. Request AI dengan Multi-Model Fallback
 async function callOpenRouter(messages) {
   const models = [
     'google/gemini-2.0-flash-001',
-    'google/gemini-2.0-flash-lite-001',
+    'google/gemini-flash-1.5',
+    'meta-llama/llama-3.2-11b-vision-instruct',
     'meta-llama/llama-3.3-70b-instruct'
   ];
 
+  let lastError = null;
   for (const model of models) {
     try {
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -232,13 +300,19 @@ async function callOpenRouter(messages) {
         },
         body: JSON.stringify({ model: model, messages: messages })
       });
+
       const data = await res.json();
       if (data.choices && data.choices[0]) {
         return data.choices[0].message.content;
       }
-    } catch (e) {}
+      if (data.error) {
+        lastError = data.error.message || JSON.stringify(data.error);
+      }
+    } catch (e) {
+      lastError = e.message;
+    }
   }
-  throw new Error('Endpoint AI gagal merespon.');
+  throw new Error(lastError || 'Semua model AI sedang sibuk.');
 }
 
 async function askAiConversation(promptText) {
@@ -253,7 +327,7 @@ async function askAiConversation(promptText) {
     appendChatMessage('assistant', reply);
   } catch (err) {
     document.getElementById(loaderId)?.remove();
-    appendChatMessage('assistant', '⚠️ Gagal terhubung ke AI.');
+    appendChatMessage('assistant', `⚠️ Gagal terhubung ke AI: ${err.message}`);
   }
 }
 
@@ -282,13 +356,13 @@ async function requestAiAudit() {
     ]);
     box.textContent = reply;
   } catch (err) {
-    box.textContent = '⚠️ Analisis gagal: Periksa koneksi jaringan Anda.';
+    box.textContent = `⚠️ Analisis gagal: ${err.message}`;
   } finally {
     btn.disabled = false;
   }
 }
 
-// 8. Render Metrik Saldo
+// 10. Render Metrik Saldo
 function renderSummary() {
   const currentList = getFilteredTransactions();
   let inc = 0, exp = 0;
@@ -303,7 +377,7 @@ function renderSummary() {
   document.getElementById('stat-expense').textContent = `Rp ${exp.toLocaleString('id-ID')}`;
 }
 
-// 9. Pelacak Sinking Fund & Tabungan Impian Presisi
+// 11. Pelacak Sinking Fund Presisi
 function renderGoals() {
   const container = document.getElementById('goals-container');
   if (!container) return;
@@ -439,7 +513,7 @@ function depositToGoal(id) {
   }
 }
 
-// 10. Render Tabel Riwayat dengan Pencarian & Filter Kategori
+// 12. Render Tabel Riwayat dengan Pencarian & Filter Kategori
 function renderHistoryTable() {
   const tb = document.getElementById('history-table-body');
   if (!tb) return;
@@ -487,7 +561,7 @@ function deleteTransaction(id) {
   renderAll();
 }
 
-// 11. Navigasi 4 Tab
+// 13. Navigasi 4 Tab
 function switchTab(selectedTab) {
   const tabs = ['chat', 'charts', 'goals', 'history'];
   
@@ -512,7 +586,7 @@ function switchTab(selectedTab) {
   }
 }
 
-// 12. Diagram Lingkaran
+// 14. Diagram Lingkaran
 function initChart() {
   const ctx = document.getElementById('categoryChart');
   if (!ctx) return;
@@ -563,7 +637,7 @@ function updateChartData() {
   }
 }
 
-// 13. Dual Engine OCR: Struk Kasir & Resi Digital (E-Wallet / QRIS / Transfer)
+// 15. DUAL-ENGINE OCR (KOMPRESI OTOMATIS + SANITASI ANGKA)
 async function handleReceiptUpload(event, mode = 'physical') {
   const file = event.target.files[0];
   if (!file) return;
@@ -572,82 +646,65 @@ async function handleReceiptUpload(event, mode = 'physical') {
   const label = mode === 'digital' ? 'screenshot resi transfer / QRIS / E-Wallet...' : 'total belanja struk kasir...';
   appendChatMessage('assistant', `📷 Membaca ${label}`, loaderId);
 
-  const reader = new FileReader();
-  reader.readAsDataURL(file);
-  reader.onload = async (e) => {
-    try {
-      const base64Img = e.target.result;
-      
-      const promptText = mode === 'digital' 
-        ? `Anda adalah spesialis OCR pembaca screenshot bukti transaksi perbankan & E-Wallet Indonesia (DANA, GoPay, OVO, ShopeePay, QRIS, BCA Mobile, BRImo, Livin Mandiri).
-Tugas Anda:
-1. Temukan nama penerima uang, merchant, atau tujuan transaksi (misal: "QRIS Kopi Kenangan", "Transfer ke Budi", "DANA Topup PLN", "Shopee").
-2. Temukan NOMINAL AKHIR uang yang ditransfer/dibayar (hanya angka murni integer).
-3. Tentukan apakah ini 'expense' (uang keluar/transfer/bayar) atau 'income' (uang masuk/terima transfer).
-4. Tentukan kategori yang cocok: Makanan & Minuman / Transportasi / Tagihan & Utilitas / Belanja Harian / Hiburan & Santai / Keluarga & Transfer / Kesehatan.
+  try {
+    // Kompres gambar otomatis agar ringan (< 150KB)
+    const base64Img = await compressImage(file, 1024, 0.8);
+    
+    const promptText = mode === 'digital' 
+      ? `Anda adalah OCR pembaca bukti transaksi / screenshot E-Wallet (DANA, GoPay, OVO, ShopeePay, QRIS, BCA, BRImo, Mandiri).
+1. Temukan nama penerima/merchant/toko tujuan.
+2. Temukan TOTAL NOMINAL uang transaksi (harus angka bulat).
+3. Tentukan type: 'expense' (keluar/transfer) atau 'income' (uang masuk/terima).
+4. Tentukan category: Makanan & Minuman / Transportasi / Tagihan & Utilitas / Belanja Harian / Hiburan & Santai / Keluarga & Transfer / Kesehatan / Lainnya.
 
-KEMBALIKAN HANYA FORMAT JSON:
-{"description": "Nama Penerima/Merchant", "nominal": 50000, "type": "expense", "category": "Keluarga & Transfer"}`
-        : `Ekstrak nama toko dan TOTAL AKHIR belanja dari foto struk fisik ini. Kembalikan format JSON: {"description": "Nama Toko", "nominal": 25000, "type": "expense", "category": "Belanja Harian"}`;
+KEMBALIKAN HANYA JSON VALID:
+{"description": "Nama Merchant / Penerima", "nominal": 50000, "type": "expense", "category": "Keluarga & Transfer"}`
+      : `Ekstrak nama toko dan TOTAL AKHIR belanja dari foto struk ini. Kembalikan JSON: {"description": "Nama Toko", "nominal": 25000, "type": "expense", "category": "Belanja Harian"}`;
 
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'HTTP-Referer': window.location.href,
-          'X-Title': 'FinAI Assistant'
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.0-flash-001',
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'text', text: promptText },
-              { type: 'image_url', image_url: { url: base64Img } }
-            ]
-          }]
-        })
-      });
+    const rawContent = await callOpenRouter([{
+      role: 'user',
+      content: [
+        { type: 'text', text: promptText },
+        { type: 'image_url', image_url: { url: base64Img } }
+      ]
+    }]);
 
-      const data = await res.json();
-      document.getElementById(loaderId)?.remove();
-      const raw = data.choices?.[0]?.message?.content || '';
-      
-      let detected = null;
-      const jsonMatch = raw.match(/\{[\s\S]*?\}/);
-      if (jsonMatch) {
-        try {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed.nominal || parsed.total) {
-            detected = { 
-              description: parsed.description || (mode === 'digital' ? 'Transfer / QRIS' : 'Struk Belanja'), 
-              nominal: parseFloat(parsed.nominal || parsed.total), 
-              type: parsed.type || 'expense',
-              category: parsed.category || (mode === 'digital' ? 'Keluarga & Transfer' : 'Belanja Harian')
-            };
-          }
-        } catch(err){}
-      }
-
-      if (detected && detected.nominal > 0) {
-        const trx = recordTransaction(detected);
-        const typeLabel = trx.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
-        const badge = mode === 'digital' ? '📱 Resi Digital' : '🧾 Struk Kasir';
-        appendChatMessage('assistant', `✅ **${badge} Terdeteksi!**\n• **Item:** ${trx.description}\n• **Kategori:** ${trx.category}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}`);
-      } else {
-        appendChatMessage('assistant', '⚠️ Gagal membaca nominal transaksi dari gambar. Pastikan teks pada screenshot atau struk terlihat jelas.');
-      }
-    } catch (err) {
-      document.getElementById(loaderId)?.remove();
-      appendChatMessage('assistant', '⚠️ Gagal membaca gambar: ' + err.message);
-    } finally {
-      event.target.value = '';
+    document.getElementById(loaderId)?.remove();
+    
+    let detected = null;
+    const jsonMatch = rawContent.match(/\{[\s\S]*?\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        const cleanedNominal = cleanNominal(parsed.nominal || parsed.total || parsed.amount);
+        if (cleanedNominal > 0) {
+          detected = { 
+            description: parsed.description || parsed.merchant || (mode === 'digital' ? 'Transfer / QRIS' : 'Struk Belanja'), 
+            nominal: cleanedNominal, 
+            type: parsed.type || 'expense',
+            category: parsed.category || (mode === 'digital' ? 'Keluarga & Transfer' : 'Belanja Harian')
+          };
+        }
+      } catch(err){}
     }
-  };
+
+    if (detected && detected.nominal > 0) {
+      const trx = recordTransaction(detected);
+      const typeLabel = trx.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+      const badge = mode === 'digital' ? '📱 Resi Digital' : '🧾 Struk Kasir';
+      appendChatMessage('assistant', `✅ **${badge} Terdeteksi!**\n• **Item:** ${trx.description}\n• **Kategori:** ${trx.category}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}`);
+    } else {
+      appendChatMessage('assistant', '⚠️ Gagal mendeteksi nominal transaksi. Pastikan tulisan total harga / transfer pada gambar terlihat jelas.');
+    }
+  } catch (err) {
+    document.getElementById(loaderId)?.remove();
+    appendChatMessage('assistant', `⚠️ Gagal membaca gambar: ${err.message}`);
+  } finally {
+    event.target.value = '';
+  }
 }
 
-// 14. Ekspor CSV
+// 16. Ekspor CSV
 function exportToCSV() {
   const currentList = getFilteredTransactions();
   if (!currentList.length) return alert('Tidak ada transaksi pada periode ini untuk diunduh!');
@@ -663,7 +720,7 @@ function exportToCSV() {
   a.click();
 }
 
-// 15. Ekspor Rekap Visual PDF
+// 17. Ekspor Rekap Visual PDF
 function exportVisualPDF() {
   const currentList = getFilteredTransactions();
   if (!currentList.length) return alert('Tidak ada data transaksi untuk diekspor ke PDF!');
