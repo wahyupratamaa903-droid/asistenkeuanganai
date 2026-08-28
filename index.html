@@ -13,158 +13,247 @@
     .sheet-table td { border: 1px solid #1f2937; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes pulse-red { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.1); } }
+    .recording-active { animation: pulse-red 1s infinite; background-color: #e11d48 !important; color: white !important; }
   </style>
 </head>
 <body class="text-slate-200 text-xs min-h-screen flex flex-col justify-between p-2 md:p-4">
 
-  <!-- Header & Top Navigation -->
-  <header class="bg-slate-900 border border-slate-800 rounded-2xl p-3 mb-3 shadow-xl">
-    <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
+  <!-- Top Header & Budget Meter -->
+  <header class="bg-slate-900 border border-slate-800 rounded-2xl p-3 mb-3 shadow-xl space-y-2.5">
+    <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
       <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-base shadow-inner">
-          <i class="fas fa-wallet"></i>
+        <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm shadow-inner">
+          <i class="fas fa-shield-halved"></i>
         </div>
         <div>
-          <h1 class="font-black text-sm text-slate-100 uppercase tracking-wide">FinAI Manager</h1>
-          <p class="text-[10px] text-slate-400">Pencatatan Otomatis & Analisis AI</p>
+          <h1 class="font-black text-xs sm:text-sm text-slate-100 uppercase tracking-wide">FinAI Smart Assistant</h1>
+          <p class="text-[10px] text-slate-400">Pencatatan Suara, Scan Struk & Analisis</p>
         </div>
       </div>
-      <div class="flex items-center gap-2">
-        <button onclick="openApiKeyModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition">
-          <i class="fas fa-key text-amber-400"></i> API Key
+      <div class="flex items-center gap-1.5">
+        <button onclick="openBudgetModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition" title="Set Budget">
+          <i class="fas fa-sliders text-emerald-400"></i> Budget
+        </button>
+        <button onclick="openApiKeyModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition" title="Set API Key">
+          <i class="fas fa-key text-amber-400"></i> API
         </button>
       </div>
     </div>
 
-    <!-- Live Financial Summary Cards -->
-    <div class="grid grid-cols-3 gap-2 pt-2.5 text-center font-mono">
-      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2">
-        <span class="text-[9px] text-slate-400 block uppercase">Pemasukan</span>
+    <!-- Live Budget & Daily Allowance Banner -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
+      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
+        <span class="text-[9px] text-slate-500 block uppercase">Pemasukan</span>
         <span id="stat-income" class="text-xs font-bold text-emerald-400">Rp 0</span>
       </div>
-      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2">
-        <span class="text-[9px] text-slate-400 block uppercase">Pengeluaran</span>
+      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
+        <span class="text-[9px] text-slate-500 block uppercase">Pengeluaran</span>
         <span id="stat-expense" class="text-xs font-bold text-rose-400">Rp 0</span>
       </div>
-      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2">
-        <span class="text-[9px] text-slate-400 block uppercase">Sisa Saldo</span>
-        <span id="stat-balance" class="text-xs font-bold text-slate-100">Rp 0</span>
+      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
+        <span class="text-[9px] text-slate-500 block uppercase">Jatah Hari Ini</span>
+        <span id="stat-daily-allowance" class="text-xs font-bold text-cyan-400">Rp 0</span>
+      </div>
+      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
+        <span class="text-[9px] text-slate-500 block uppercase">Skor Sehat</span>
+        <span id="stat-health-score" class="text-xs font-bold text-emerald-400">100/100</span>
       </div>
     </div>
 
-    <!-- View Switcher Tabs -->
-    <div class="flex gap-1.5 mt-2.5 pt-2 border-t border-slate-800/80">
-      <button onclick="switchTab('chat')" id="tab-btn-chat" class="flex-1 py-1.5 font-bold rounded-lg text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 text-center transition">
-        <i class="fas fa-comments mr-1"></i> Chat & Catat
+    <!-- Anomaly / Micro Spending Warning Banner -->
+    <div id="anomaly-banner" class="hidden bg-amber-950/40 border border-amber-800/80 rounded-xl p-2 text-[10px] text-amber-300 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <i class="fas fa-triangle-exclamation text-amber-400"></i>
+        <span id="anomaly-text">Peringatan micro-spending terdeteksi.</span>
+      </div>
+      <button onclick="document.getElementById('anomaly-banner').classList.add('hidden')" class="text-slate-400 hover:text-slate-200"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Navigation Switcher Tabs -->
+    <div class="grid grid-cols-4 gap-1 pt-1">
+      <button onclick="switchTab('chat')" id="tab-btn-chat" class="py-1.5 font-bold rounded-lg text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 text-center transition">
+        <i class="fas fa-microphone"></i> Catat
       </button>
-      <button onclick="switchTab('charts')" id="tab-btn-charts" class="flex-1 py-1.5 font-bold rounded-lg text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-800 text-center transition">
-        <i class="fas fa-chart-pie mr-1"></i> Grafik & AI
+      <button onclick="switchTab('charts')" id="tab-btn-charts" class="py-1.5 font-bold rounded-lg text-[11px] text-slate-400 bg-slate-950 border border-slate-800 text-center transition">
+        <i class="fas fa-chart-pie"></i> Analisis
       </button>
-      <button onclick="switchTab('history')" id="tab-btn-history" class="flex-1 py-1.5 font-bold rounded-lg text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-800 text-center transition">
-        <i class="fas fa-table-list mr-1"></i> Riwayat (<span id="count-trx">0</span>)
+      <button onclick="switchTab('goals')" id="tab-btn-goals" class="py-1.5 font-bold rounded-lg text-[11px] text-slate-400 bg-slate-950 border border-slate-800 text-center transition">
+        <i class="fas fa-bullseye"></i> Impian
+      </button>
+      <button onclick="switchTab('history')" id="tab-btn-history" class="py-1.5 font-bold rounded-lg text-[11px] text-slate-400 bg-slate-950 border border-slate-800 text-center transition">
+        <i class="fas fa-table-list"></i> Riwayat
       </button>
     </div>
   </header>
 
-  <!-- TAB 1: Chat & Natural Language Entry -->
+  <!-- TAB 1: Chat, Voice, Scan & Quick Input -->
   <section id="tab-chat" class="flex-1 flex flex-col justify-between max-w-2xl w-full mx-auto">
-    <div id="chat-box" class="flex-1 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 space-y-3 overflow-y-auto max-h-[58vh] shadow-inner">
+    <div id="chat-box" class="flex-1 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 space-y-3 overflow-y-auto max-h-[55vh] shadow-inner">
       <div class="flex items-start gap-2.5">
         <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
           <i class="fas fa-robot"></i>
         </div>
         <div class="bg-slate-800/90 border border-slate-700 p-3 rounded-2xl rounded-tl-none text-slate-200 text-xs leading-relaxed max-w-[85%] shadow-sm">
-          Halo! Ketik transaksi santai seperti:
+          Halo! Anda bisa mencatat transaksi dengan 3 cara mudah:
           <div class="mt-2 space-y-1 font-mono text-[11px] text-emerald-300">
-            <div>• <span class="text-slate-300">"beli kopi 25rb"</span></div>
-            <div>• <span class="text-slate-300">"isi bensin motor 30k"</span></div>
-            <div>• <span class="text-slate-300">"gaji masuk 5 juta"</span></div>
-            <div>• <span class="text-slate-300">"bayar wifi 350.000"</span></div>
+            <div>• <b>Suara:</b> Klik tombol mic dan ucapkan pengeluaran Anda.</div>
+            <div>• <b>Foto Struk:</b> Klik tombol kamera untuk memindai struk fisik.</div>
+            <div>• <b>Ketik:</b> Cth: <i>"kopi 25rb"</i>, <i>"bensin 30k"</i>, <i>"gaji 5jt"</i>.</div>
           </div>
-          AI otomatis mendeteksi nominal, kategori, dan menghitung saldo Anda!
         </div>
       </div>
     </div>
 
-    <!-- Quick Prompts & Chat Input Bar -->
+    <!-- Controls & Inputs -->
     <div class="mt-3 space-y-2">
       <div class="flex gap-1.5 overflow-x-auto pb-1 text-[10px] no-scrollbar">
-        <button onclick="fillInput('beli kopi kenangan 28rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
-          ☕ Kopi 28rb
+        <button onclick="fillInput('beli kopi 25rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
+          ☕ Kopi 25rb
         </button>
-        <button onclick="fillInput('makan siang padang 35k')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
-          🍛 Makan Siang 35k
+        <button onclick="fillInput('makan siang 35k')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
+          🍛 Makan 35k
         </button>
-        <button onclick="fillInput('isi bensin pertalite 50rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
-          ⛽ Bensin 50rb
+        <button onclick="fillInput('isi bensin 30rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
+          ⛽ Bensin 30rb
         </button>
-        <button onclick="fillInput('gaji bulanan 5.000.000')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
+        <button onclick="fillInput('gaji masuk 5.000.000')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
           💵 Gaji 5jt
         </button>
       </div>
 
-      <form onsubmit="handleUserInput(event)" class="flex gap-2">
-        <input type="text" id="chat-input" placeholder="Ketik pengeluaran / pemasukan..." required class="flex-1 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none transition">
-        <button type="submit" id="btn-send" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition">
-          <span>Kirim</span>
+      <!-- Hidden file input for OCR -->
+      <input type="file" id="receipt-file-input" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
+
+      <form onsubmit="handleUserInput(event)" class="flex items-center gap-1.5">
+        <!-- Voice Input Button -->
+        <button type="button" id="btn-voice" onclick="toggleVoiceRecording()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 w-9 h-9 rounded-xl flex items-center justify-center transition flex-shrink-0" title="Input Suara">
+          <i class="fas fa-microphone text-xs"></i>
+        </button>
+
+        <!-- Camera / Scan Receipt Button -->
+        <button type="button" onclick="document.getElementById('receipt-file-input').click()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-400 w-9 h-9 rounded-xl flex items-center justify-center transition flex-shrink-0" title="Scan Struk Belanja">
+          <i class="fas fa-camera text-xs"></i>
+        </button>
+
+        <input type="text" id="chat-input" placeholder="Ketik atau gunakan mic..." required class="flex-1 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none transition">
+        <button type="submit" id="btn-send" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1 transition flex-shrink-0">
           <i class="fas fa-paper-plane text-[10px]"></i>
         </button>
       </form>
     </div>
   </section>
 
-  <!-- TAB 2: Charts & AI Deep Analysis -->
+  <!-- TAB 2: Charts, Health Score & AI Advisor -->
   <section id="tab-charts" class="hidden flex-1 max-w-2xl w-full mx-auto space-y-3">
-    <!-- Pie Chart Card -->
-    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
-      <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+    <!-- Financial Health & 50/30/20 Breakdown -->
+    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
         <h2 class="font-bold text-xs text-slate-200 uppercase tracking-wider flex items-center gap-2">
-          <i class="fas fa-chart-pie text-emerald-400"></i> Diagram Pengeluaran Bulanan
+          <i class="fas fa-heart-pulse text-rose-400"></i> Rasio 50/30/20 Keuangan
         </h2>
-        <span class="text-[10px] text-slate-400">Kategori Otomatis</span>
+        <span id="health-grade-badge" class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full font-bold">SEHAT</span>
       </div>
-      <div class="w-full max-w-[240px] mx-auto h-[240px] relative">
-        <canvas id="categoryChart"></canvas>
-      </div>
-      <div id="chart-empty-msg" class="text-center text-slate-500 py-6 text-xs hidden">
-        Belum ada data pengeluaran untuk ditampilkan pada diagram.
+
+      <div class="space-y-2 text-[11px] font-mono">
+        <div>
+          <div class="flex justify-between text-[10px] mb-1">
+            <span class="text-slate-400">Kebutuhan Pokok (Maks 50%)</span>
+            <span id="ratio-needs-pct" class="font-bold text-cyan-400">0%</span>
+          </div>
+          <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+            <div id="ratio-needs-bar" class="bg-cyan-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex justify-between text-[10px] mb-1">
+            <span class="text-slate-400">Keinginan & Lifestyle (Maks 30%)</span>
+            <span id="ratio-wants-pct" class="font-bold text-amber-400">0%</span>
+          </div>
+          <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+            <div id="ratio-wants-bar" class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex justify-between text-[10px] mb-1">
+            <span class="text-slate-400">Tabungan & Investasi (Min 20%)</span>
+            <span id="ratio-savings-pct" class="font-bold text-emerald-400">0%</span>
+          </div>
+          <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+            <div id="ratio-savings-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- AI Advisor Insight Card -->
-    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+    <!-- Category Pie Chart -->
+    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
+      <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+        <h2 class="font-bold text-xs text-slate-200 uppercase tracking-wider flex items-center gap-2">
+          <i class="fas fa-chart-pie text-emerald-400"></i> Diagram Kategori
+        </h2>
+        <span class="text-[10px] text-slate-400">Distribusi Biaya</span>
+      </div>
+      <div class="w-full max-w-[220px] mx-auto h-[220px] relative">
+        <canvas id="categoryChart"></canvas>
+      </div>
+      <div id="chart-empty-msg" class="text-center text-slate-500 py-6 text-xs hidden">
+        Belum ada data pengeluaran untuk ditampilkan.
+      </div>
+    </div>
+
+    <!-- AI Advisor Audit -->
+    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-2.5">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2">
         <h3 class="font-bold text-xs text-slate-200 flex items-center gap-2">
-          <i class="fas fa-brain text-purple-400"></i> Evaluasi & Saran Finansial AI
+          <i class="fas fa-brain text-purple-400"></i> AI Financial Advisor
         </h3>
-        <button onclick="requestAiAudit()" id="btn-ai-audit" class="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
-          <i class="fas fa-wand-magic-sparkles"></i> Analisis AI Sekarang
+        <button onclick="requestAiAudit()" class="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
+          <i class="fas fa-wand-magic-sparkles"></i> Analisis AI
         </button>
       </div>
-      <div id="ai-insight-box" class="text-xs text-slate-300 leading-relaxed bg-slate-950/60 border border-slate-800 rounded-xl p-3 whitespace-pre-wrap min-h-[80px]">
-        Klik tombol "Analisis AI Sekarang" di atas untuk meminta asisten AI mengevaluasi pola pengeluaran, rasio tabungan, dan tips penghematan mingguan Anda.
+      <div id="ai-insight-box" class="text-xs text-slate-300 leading-relaxed bg-slate-950/60 border border-slate-800 rounded-xl p-3 whitespace-pre-wrap min-h-[70px]">
+        Klik "Analisis AI" untuk evaluasi komprehensif dari kebiasaan belanja Anda.
       </div>
     </div>
   </section>
 
-  <!-- TAB 3: Full Spreadsheet / History Table -->
+  <!-- TAB 3: Goal Tracker / Target Impian -->
+  <section id="tab-goals" class="hidden flex-1 max-w-2xl w-full mx-auto space-y-3">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-xl flex items-center justify-between">
+      <div>
+        <h2 class="font-bold text-xs text-slate-100 uppercase">Target Tabungan & Impian</h2>
+        <p class="text-[10px] text-slate-400">Simulasi dan alokasi otomatis</p>
+      </div>
+      <button onclick="openGoalModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
+        <i class="fas fa-plus"></i> Tambah Target
+      </button>
+    </div>
+
+    <div id="goals-container" class="space-y-2.5">
+      <!-- Diisi otomatis oleh JavaScript -->
+    </div>
+  </section>
+
+  <!-- TAB 4: Spreadsheet History -->
   <section id="tab-history" class="hidden flex-1 max-w-4xl w-full mx-auto space-y-3">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl flex items-center justify-between gap-2">
       <div>
         <h2 class="font-bold text-xs text-slate-100">Daftar Transaksi Lengkap</h2>
-        <p class="text-[10px] text-slate-400">Tersimpan otomatis di penyimpanan lokal</p>
+        <p class="text-[10px] text-slate-400">Penyimpanan lokal browser</p>
       </div>
       <div class="flex items-center gap-2">
         <button onclick="exportToCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition text-[11px]">
           <i class="fas fa-file-csv text-emerald-400"></i> Unduh CSV
         </button>
-        <button onclick="clearAllData()" class="bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800 font-bold px-2.5 py-1.5 rounded-lg transition text-[11px]" title="Reset Semua">
+        <button onclick="clearAllData()" class="bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800 font-bold px-2.5 py-1.5 rounded-lg transition text-[11px]">
           <i class="fas fa-trash"></i>
         </button>
       </div>
     </div>
 
-    <!-- Spreadsheet Table Container -->
     <div class="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
       <div class="overflow-x-auto max-h-[65vh]">
         <table class="sheet-table w-full text-left border-collapse font-mono text-[11px]">
@@ -180,113 +269,279 @@
             </tr>
           </thead>
           <tbody id="history-table-body" class="divide-y divide-slate-800">
-            <!-- Diisi otomatis oleh JavaScript -->
+            <!-- Diisi JavaScript -->
           </tbody>
         </table>
       </div>
     </div>
   </section>
 
-  <!-- Modal API Key & Settings -->
+  <!-- MODAL 1: Budget Settings -->
+  <div id="budget-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
+          <i class="fas fa-sliders text-emerald-400"></i> Set Batas Anggaran Bulanan
+        </h3>
+        <button onclick="closeBudgetModal()" class="text-slate-400 hover:text-slate-100"><i class="fas fa-times"></i></button>
+      </div>
+      <div>
+        <label class="text-[10px] text-slate-400 block mb-1">Batas Maksimal Pengeluaran (Rp):</label>
+        <input type="number" id="input-monthly-budget" placeholder="Contoh: 2000000" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-amber-400 font-bold font-mono focus:outline-none focus:border-emerald-500">
+        <p class="text-[10px] text-slate-500 mt-1">Sistem akan menghitung jatah harian aman secara otomatis.</p>
+      </div>
+      <button onclick="saveBudget()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition">
+        Simpan Anggaran
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Add Goal -->
+  <div id="goal-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
+          <i class="fas fa-bullseye text-emerald-400"></i> Tambah Target Impian
+        </h3>
+        <button onclick="closeGoalModal()" class="text-slate-400 hover:text-slate-100"><i class="fas fa-times"></i></button>
+      </div>
+      <form onsubmit="handleSaveGoal(event)" class="space-y-2.5">
+        <div>
+          <label class="text-[10px] text-slate-400 block mb-1">Nama Target</label>
+          <input type="text" id="goal-name" placeholder="Beli Laptop / Dana Darurat" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200">
+        </div>
+        <div>
+          <label class="text-[10px] text-slate-400 block mb-1">Target Nominal (Rp)</label>
+          <input type="number" id="goal-target" placeholder="5000000" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200 font-mono">
+        </div>
+        <div>
+          <label class="text-[10px] text-slate-400 block mb-1">Sudah Terkumpul (Rp)</label>
+          <input type="number" id="goal-current" placeholder="500000" value="0" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200 font-mono">
+        </div>
+        <div>
+          <label class="text-[10px] text-slate-400 block mb-1">Tenggat Waktu (Target Bulan/Tahun)</label>
+          <input type="text" id="goal-deadline" placeholder="Desember 2026" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200">
+        </div>
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition mt-2">
+          Simpan Target
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3: API Key -->
   <div id="api-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
     <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2">
         <h3 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
-          <i class="fas fa-key text-amber-400"></i> Pengaturan OpenRouter API
+          <i class="fas fa-key text-amber-400"></i> OpenRouter API Key
         </h3>
         <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-slate-100"><i class="fas fa-times"></i></button>
       </div>
-      <div class="space-y-2">
-        <label class="text-[10px] text-slate-400 block">OpenRouter API Key:</label>
+      <div>
+        <label class="text-[10px] text-slate-400 block mb-1">Kunci API:</label>
         <input type="password" id="input-api-key" placeholder="sk-or-v1-..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
-        <p class="text-[10px] text-slate-500">Kunci disimpan aman di memori browser Anda (localStorage).</p>
+        <p class="text-[10px] text-slate-500 mt-1">Dibutuhkan untuk konsultasi obrolan & fitur Scan Struk OCR.</p>
       </div>
-      <div class="flex gap-2 pt-2">
-        <button onclick="saveApiKey()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition">
-          Simpan Kunci
-        </button>
-      </div>
+      <button onclick="saveApiKey()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition">
+        Simpan Kunci
+      </button>
     </div>
   </div>
 
   <script>
     const STORAGE_KEY = 'finai_transactions_v1';
+    const BUDGET_KEY = 'finai_monthly_budget_v1';
+    const GOALS_KEY = 'finai_goals_v1';
     const API_KEY_STORAGE = 'finai_openrouter_key';
-    
-    let transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    let chartInstance = null;
 
-    // Model fallback list
+    let transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    let monthlyBudget = parseFloat(localStorage.getItem(BUDGET_KEY) || '2000000');
+    let goals = JSON.parse(localStorage.getItem(GOALS_KEY) || '[]');
+    
+    let chartInstance = null;
+    let recognition = null;
+    let isRecording = false;
+
     const AI_MODELS = [
       'google/gemini-2.0-flash-lite-001',
       'google/gemini-2.0-flash-001',
-      'google/gemini-flash-1.5',
-      'meta-llama/llama-3.3-70b-instruct',
       'openrouter/auto'
     ];
 
-    // Initialize App
     document.addEventListener('DOMContentLoaded', () => {
-      renderSummary();
-      renderHistoryTable();
+      initSpeechRecognition();
+      renderAll();
       initChart();
     });
 
-    // Smart NLP Natural Language Parser
+    function renderAll() {
+      renderSummary();
+      renderHistoryTable();
+      renderGoals();
+      checkAnomalies();
+      if (chartInstance) updateChartData();
+    }
+
+    // 1. Web Speech API (Voice-to-Text)
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'id-ID';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        recognition.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          document.getElementById('chat-input').value = transcript;
+          toggleVoiceRecording(false);
+          handleUserInput();
+        };
+
+        recognition.onerror = () => toggleVoiceRecording(false);
+        recognition.onend = () => toggleVoiceRecording(false);
+      }
+    }
+
+    function toggleVoiceRecording(forceState) {
+      const btn = document.getElementById('btn-voice');
+      if (!recognition) {
+        alert('Fitur input suara belum didukung di browser ini. Gunakan Google Chrome versi terbaru.');
+        return;
+      }
+
+      if (forceState !== undefined) {
+        isRecording = forceState;
+      } else {
+        isRecording = !isRecording;
+      }
+
+      if (isRecording) {
+        btn.classList.add('recording-active');
+        try { recognition.start(); } catch (e) {}
+      } else {
+        btn.classList.remove('recording-active');
+        try { recognition.stop(); } catch (e) {}
+      }
+    }
+
+    // 2. Scan Foto Struk Belanja (OCR Vision AI)
+    async function handleReceiptUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const apiKey = localStorage.getItem(API_KEY_STORAGE);
+      if (!apiKey) {
+        alert('Fitur Scan Struk memerlukan API Key. Silakan masukkan API Key Anda pada tombol di kanan atas.');
+        openApiKeyModal();
+        return;
+      }
+
+      const loaderId = 'loader-receipt-' + Date.now();
+      appendChatMessage('assistant', '📷 Sedang menganalisis struk belanja Anda dengan AI Vision...', loaderId);
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64Data = reader.result;
+
+        try {
+          const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey.trim()}`,
+              'HTTP-Referer': window.location.origin,
+              'X-Title': 'FinAI Receipt Scanner'
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.0-flash-001',
+              messages: [
+                {
+                  role: 'user',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Ekstrak total nominal belanja dan nama toko/item utama dari struk ini. Wajib kembalikan HANYA format JSON valid tanpa format markdown atau backticks: {"description": "Nama Toko / Barang", "nominal": 25000, "category": "Makanan & Minuman / Belanja Harian / Transportasi / Tagihan & Utilitas / Hiburan & Santai / Kesehatan"}'
+                    },
+                    {
+                      type: 'image_url',
+                      image_url: { url: base64Data }
+                    }
+                  ]
+                }
+              ]
+            })
+          });
+
+          const data = await res.json();
+          document.getElementById(loaderId)?.remove();
+
+          let rawContent = data.choices?.[0]?.message?.content || '{}';
+          rawContent = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(rawContent);
+
+          if (parsed && parsed.nominal) {
+            const newTrx = {
+              id: Date.now(),
+              date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+              description: parsed.description || 'Struk Belanja',
+              type: 'expense',
+              category: parsed.category || 'Belanja Harian',
+              nominal: parseFloat(parsed.nominal)
+            };
+
+            transactions.unshift(newTrx);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+            renderAll();
+
+            appendChatMessage('assistant', `🧾 **Struk Berhasil Dipindai!**\n• **Toko/Item:** ${newTrx.description}\n• **Total:** Rp ${newTrx.nominal.toLocaleString('id-ID')}\n• **Kategori:** ${newTrx.category}`);
+          } else {
+            appendChatMessage('assistant', '⚠️ Tidak dapat mendeteksi nominal pada struk. Pastikan foto struk terlihat jelas dan terang.');
+          }
+        } catch (err) {
+          document.getElementById(loaderId)?.remove();
+          appendChatMessage('assistant', '⚠️ Gagal membaca struk: ' + err.message);
+        }
+      };
+      reader.readAsDataURL(file);
+      event.target.value = '';
+    }
+
+    // 3. Natural Language Parser
     function parseNaturalLanguage(text) {
       const lower = text.toLowerCase().trim();
-
-      // 1. Deteksi Nominal Angka
       let nominal = 0;
       const numMatch = lower.match(/(\d+(?:[.,]\d+)?)\s*(juta|jt|ribu|rb|k)?/i);
-      
+
       if (numMatch) {
         let rawNum = parseFloat(numMatch[1].replace(',', '.'));
         const unit = numMatch[2] ? numMatch[2].toLowerCase() : '';
-        
-        if (unit === 'juta' || unit === 'jt') {
-          nominal = rawNum * 1000000;
-        } else if (unit === 'ribu' || unit === 'rb' || unit === 'k') {
-          nominal = rawNum * 1000;
-        } else {
-          // Format ribuan biasa seperti 25000 atau 25.000
-          if (numMatch[1].includes('.') && rawNum < 1000) {
-            nominal = parseInt(numMatch[1].replace(/\./g, ''));
-          } else {
-            nominal = rawNum;
-          }
+        if (unit === 'juta' || unit === 'jt') nominal = rawNum * 1000000;
+        else if (unit === 'ribu' || unit === 'rb' || unit === 'k') nominal = rawNum * 1000;
+        else {
+          if (numMatch[1].includes('.') && rawNum < 1000) nominal = parseInt(numMatch[1].replace(/\./g, ''));
+          else nominal = rawNum;
         }
       }
 
       if (!nominal || nominal <= 0) return null;
 
-      // 2. Deteksi Jenis (Pemasukan vs Pengeluaran)
-      const incomeKeywords = ['gaji', 'income', 'masuk', 'dapat', 'bonus', 'cair', 'terima', 'jual', 'hasil', 'dividen', 'profit'];
+      const incomeKeywords = ['gaji', 'income', 'masuk', 'dapat', 'bonus', 'cair', 'terima', 'jual', 'dividen', 'profit'];
       const isIncome = incomeKeywords.some(kw => lower.includes(kw));
       const type = isIncome ? 'income' : 'expense';
 
-      // 3. Deteksi Kategori Pintar
       let category = isIncome ? 'Gaji & Pendapatan' : 'Lainnya';
-
       if (!isIncome) {
-        if (/(kopi|coffee|cafe|makan|minum|resto|warteg|snack|jajan|sarapan|lunch|dinner|nasi|mie|bakso|ayam|sate)/i.test(lower)) {
-          category = 'Makanan & Minuman';
-        } else if (/(bensin|pertalite|pertamax|parkir|gojek|grab|ojol|tol|angkot|kereta|service|oli|motor|mobil)/i.test(lower)) {
-          category = 'Transportasi';
-        } else if (/(listrik|token|pln|pdam|air|wifi|internet|indihome|pulsa|kuota|sewa|kos|kontrakan|bpjs|tagihan|cicilan)/i.test(lower)) {
-          category = 'Tagihan & Utilitas';
-        } else if (/(belanja|shopee|tokopedia|tiktok|baju|celana|sepatu|skincare|supermarket|indomaret|alfamart)/i.test(lower)) {
-          category = 'Belanja Harian';
-        } else if (/(nonton|bioskop|game|topup|steam|netflix|spotify|karaoke|liburan|wisata|nongkrong)/i.test(lower)) {
-          category = 'Hiburan & Santai';
-        } else if (/(obat|apotek|dokter|vitamin|klinik|rs|rumah sakit|sehat)/i.test(lower)) {
-          category = 'Kesehatan';
-        } else if (/(tabung|invest|emas|reksadana|saham|crypto|deposito)/i.test(lower)) {
-          category = 'Tabungan & Investasi';
-        }
+        if (/(kopi|coffee|cafe|makan|minum|resto|warteg|snack|jajan|sarapan|lunch|dinner|nasi|mie|bakso|ayam|sate)/i.test(lower)) category = 'Makanan & Minuman';
+        else if (/(bensin|pertalite|pertamax|parkir|gojek|grab|ojol|tol|angkot|kereta|service|oli|motor|mobil)/i.test(lower)) category = 'Transportasi';
+        else if (/(listrik|token|pln|pdam|air|wifi|internet|indihome|pulsa|kuota|sewa|kos|kontrakan|bpjs|tagihan|cicilan)/i.test(lower)) category = 'Tagihan & Utilitas';
+        else if (/(belanja|shopee|tokopedia|tiktok|baju|celana|sepatu|skincare|supermarket|indomaret|alfamart)/i.test(lower)) category = 'Belanja Harian';
+        else if (/(nonton|bioskop|game|topup|steam|netflix|spotify|karaoke|liburan|wisata|nongkrong)/i.test(lower)) category = 'Hiburan & Santai';
+        else if (/(obat|apotek|dokter|vitamin|klinik|rs|rumah sakit|sehat)/i.test(lower)) category = 'Kesehatan';
+        else if (/(tabung|invest|emas|reksadana|saham|crypto|deposito)/i.test(lower)) category = 'Tabungan & Investasi';
       }
 
-      // 4. Buat Nama Deskripsi Rapi
       let description = text.replace(/(\d+(?:[.,]\d+)?)\s*(juta|jt|ribu|rb|k)?/gi, '').trim();
       description = description.replace(/^(beli|bayar|isi|buat|untuk|beliin)\s+/i, '');
       if (!description) description = category;
@@ -302,7 +557,6 @@
       };
     }
 
-    // Handle Input Chat
     async function handleUserInput(e) {
       if (e) e.preventDefault();
       const inputEl = document.getElementById('chat-input');
@@ -312,38 +566,28 @@
       appendChatMessage('user', text);
       inputEl.value = '';
 
-      // Coba Parse Natural Language
       const parsed = parseNaturalLanguage(text);
-
       if (parsed) {
         transactions.unshift(parsed);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
-        
-        renderSummary();
-        renderHistoryTable();
-        updateChartData();
+        renderAll();
 
-        const badgeColor = parsed.type === 'income' ? 'text-emerald-400' : 'text-rose-400';
         const typeLabel = parsed.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
-        
-        const confirmMsg = `✅ **${typeLabel} Dicatat!**\n• **Item:** ${parsed.description}\n• **Nominal:** Rp ${parsed.nominal.toLocaleString('id-ID')}\n• **Kategori:** ${parsed.category}`;
-        appendChatMessage('assistant', confirmMsg);
+        appendChatMessage('assistant', `✅ **${typeLabel} Dicatat!**\n• **Item:** ${parsed.description}\n• **Nominal:** Rp ${parsed.nominal.toLocaleString('id-ID')}\n• **Kategori:** ${parsed.category}`);
       } else {
-        // Jika bukan catatan angka langsung, tanyakan ke AI
         await askAiConversation(text);
       }
     }
 
-    // Chatbot AI Request
     async function askAiConversation(promptText) {
       const apiKey = localStorage.getItem(API_KEY_STORAGE);
       if (!apiKey) {
-        appendChatMessage('assistant', '💡 Catatan langsung tersimpan otomatis jika ada angka (cth: "kopi 25rb"). Untuk obrolan konsultasi AI, masukkan API Key terlebih dahulu pada tombol **API Key** di kanan atas.');
+        appendChatMessage('assistant', '💡 Catatan langsung otomatis tersimpan jika ada angka (cth: "kopi 25rb"). Untuk konsultasi dengan AI, masukkan API Key pada tombol **API** di kanan atas.');
         return;
       }
 
       const loaderId = 'loading-' + Date.now();
-      appendChatMessage('assistant', '<span class="animate-pulse">Sedang menganalisis keuangan Anda...</span>', loaderId);
+      appendChatMessage('assistant', '<span class="animate-pulse">Sedang menganalisis keuangan...</span>', loaderId);
 
       try {
         const totalExp = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.nominal, 0);
@@ -355,7 +599,7 @@
           messages: [
             {
               role: "system",
-              content: `Anda adalah asisten keuangan pribadi. Total pemasukan pengguna: Rp ${totalInc.toLocaleString('id-ID')}, Total pengeluaran: Rp ${totalExp.toLocaleString('id-ID')}. Berikan jawaban ringkas, solutif, dan ramah.`
+              content: `Anda adalah FinAI, asisten keuangan pribadi cerdas. Pemasukan total pengguna: Rp ${totalInc.toLocaleString('id-ID')}, Total pengeluaran: Rp ${totalExp.toLocaleString('id-ID')}. Berikan jawaban ringkas, solutif, dan ramah.`
             },
             { role: "user", content: promptText }
           ]
@@ -370,106 +614,157 @@
       }
     }
 
-    // AI Financial Audit Evaluator
-    async function requestAiAudit() {
-      const apiKey = localStorage.getItem(API_KEY_STORAGE);
-      if (!apiKey) {
-        alert('Silakan masukkan OpenRouter API Key Anda terlebih dahulu pada tombol di kanan atas.');
-        openApiKeyModal();
-        return;
-      }
-
-      if (transactions.length === 0) {
-        alert('Belum ada data transaksi untuk dievaluasi. Catat beberapa pengeluaran terlebih dahulu!');
-        return;
-      }
-
-      const box = document.getElementById('ai-insight-box');
-      box.textContent = '🧠 Sedang melakukan analisis mendalam terhadap transaksi Anda...';
-
-      const expList = transactions.filter(t => t.type === 'expense');
-      const incList = transactions.filter(t => t.type === 'income');
-      const totalExp = expList.reduce((s, t) => s + t.nominal, 0);
-      const totalInc = incList.reduce((s, t) => s + t.nominal, 0);
-
-      // Kategori breakdown
-      const catTotals = {};
-      expList.forEach(t => {
-        catTotals[t.category] = (catTotals[t.category] || 0) + t.nominal;
-      });
-
-      const auditPrompt = `Tolong evaluasi data keuangan saya berikut secara kritis namun solutif:
-Total Pemasukan: Rp ${totalInc.toLocaleString('id-ID')}
-Total Pengeluaran: Rp ${totalExp.toLocaleString('id-ID')}
-Sisa Saldo: Rp ${(totalInc - totalExp).toLocaleString('id-ID')}
-Breakdown Kategori Pengeluaran: ${JSON.stringify(catTotals)}
-Daftar transaksi terbaru: ${JSON.stringify(transactions.slice(0, 10))}
-
-Berikan:
-1. Ringkasan kondisi finansial saat ini.
-2. Evaluasi kategori pengeluaran terbesar & pemicu boros.
-3. 2 tips konkret penghematan untuk minggu ini.`;
-
-      try {
-        const response = await fetchWithFallback({
-          modelIndex: 0,
-          apiKey: apiKey,
-          messages: [
-            { role: "system", content: "Anda adalah penasihat keuangan pribadi independen yang ahli dalam budgeting dan efisiensi pengeluaran harian." },
-            { role: "user", content: auditPrompt }
-          ]
-        });
-
-        const reply = response.choices?.[0]?.message?.content || 'Gagal memuat evaluasi.';
-        box.textContent = reply;
-      } catch (err) {
-        box.textContent = '⚠️ Gagal menghubungi server AI: ' + err.message;
-      }
-    }
-
-    // API Helper with auto-fallback
-    async function fetchWithFallback({ modelIndex, apiKey, messages }) {
-      const model = AI_MODELS[modelIndex] || AI_MODELS[0];
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey.trim()}`,
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'FinAI Manager'
-        },
-        body: JSON.stringify({ model: model, messages: messages })
-      });
-
-      const data = await res.json();
-      if (data.error && modelIndex < AI_MODELS.length - 1) {
-        // Fallback to next model
-        return fetchWithFallback({ modelIndex: modelIndex + 1, apiKey, messages });
-      }
-      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-      return data;
-    }
-
-    // Render Metrics
+    // 4. Perhitungan Jatah Harian Dinamis & Skor 50/30/20
     function renderSummary() {
       let income = 0;
       let expense = 0;
+      let needs = 0;
+      let wants = 0;
+      let savings = 0;
 
       transactions.forEach(t => {
-        if (t.type === 'income') income += t.nominal;
-        else expense += t.nominal;
+        if (t.type === 'income') {
+          income += t.nominal;
+        } else {
+          expense += t.nominal;
+          if (['Makanan & Minuman', 'Transportasi', 'Tagihan & Utilitas', 'Kesehatan'].includes(t.category)) needs += t.nominal;
+          else if (['Belanja Harian', 'Hiburan & Santai', 'Lainnya'].includes(t.category)) wants += t.nominal;
+          else if (t.category === 'Tabungan & Investasi') savings += t.nominal;
+        }
       });
-
-      const balance = income - expense;
 
       document.getElementById('stat-income').textContent = `Rp ${income.toLocaleString('id-ID')}`;
       document.getElementById('stat-expense').textContent = `Rp ${expense.toLocaleString('id-ID')}`;
-      document.getElementById('stat-balance').textContent = `Rp ${balance.toLocaleString('id-ID')}`;
-      document.getElementById('stat-balance').className = `text-xs font-bold ${balance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
-      document.getElementById('count-trx').textContent = transactions.length;
+
+      // Daily Allowance
+      const now = new Date();
+      const totalDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const remainingDays = Math.max(1, totalDaysInMonth - now.getDate() + 1);
+      const remainingBudget = Math.max(0, monthlyBudget - expense);
+      const dailyAllowance = Math.round(remainingBudget / remainingDays);
+
+      document.getElementById('stat-daily-allowance').textContent = `Rp ${dailyAllowance.toLocaleString('id-ID')}/hr`;
+
+      // 50/30/20 Health Score
+      const totalOutflow = expense || 1;
+      const needsPct = Math.min(100, Math.round((needs / totalOutflow) * 100));
+      const wantsPct = Math.min(100, Math.round((wants / totalOutflow) * 100));
+      const savingsPct = Math.min(100, Math.round(((income > expense ? (income - expense) : 0) / (income || 1)) * 100));
+
+      document.getElementById('ratio-needs-pct').textContent = needsPct + '%';
+      document.getElementById('ratio-needs-bar').style.width = needsPct + '%';
+      document.getElementById('ratio-wants-pct').textContent = wantsPct + '%';
+      document.getElementById('ratio-wants-bar').style.width = wantsPct + '%';
+      document.getElementById('ratio-savings-pct').textContent = savingsPct + '%';
+      document.getElementById('ratio-savings-bar').style.width = savingsPct + '%';
+
+      let score = 100;
+      if (needsPct > 50) score -= (needsPct - 50);
+      if (wantsPct > 30) score -= (wantsPct - 30) * 1.5;
+      if (savingsPct < 20) score -= (20 - savingsPct);
+      score = Math.max(20, Math.min(100, Math.round(score)));
+
+      const healthBadge = document.getElementById('health-grade-badge');
+      const scoreStat = document.getElementById('stat-health-score');
+      scoreStat.textContent = score + '/100';
+
+      if (score >= 80) {
+        healthBadge.textContent = 'PRIMA';
+        healthBadge.className = 'text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full font-bold';
+      } else if (score >= 60) {
+        healthBadge.textContent = 'CUKUP';
+        healthBadge.className = 'text-[10px] bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded-full font-bold';
+      } else {
+        healthBadge.textContent = 'PERLU EVALUASI';
+        healthBadge.className = 'text-[10px] bg-rose-950 text-rose-400 border border-rose-800 px-2 py-0.5 rounded-full font-bold';
+      }
     }
 
-    // Chart.js Category Pie Chart
+    // 5. Deteksi Pola Boros (Anomaly Detection)
+    function checkAnomalies() {
+      const recentExpenses = transactions.filter(t => t.type === 'expense').slice(0, 10);
+      let coffeeOrSnackCount = 0;
+
+      recentExpenses.forEach(t => {
+        if (/kopi|coffee|snack|jajan|boba|nongkrong/i.test(t.description)) coffeeOrSnackCount++;
+      });
+
+      const banner = document.getElementById('anomaly-banner');
+      const text = document.getElementById('anomaly-text');
+
+      if (coffeeOrSnackCount >= 3) {
+        text.textContent = `Peringatan: Terdeteksi ${coffeeOrSnackCount} transaksi jajan/kopi berturut-turut. Pertimbangkan untuk membatasi pengeluaran mikro hari ini.`;
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    // 6. Goal Tracker (Dana Impian)
+    function renderGoals() {
+      const container = document.getElementById('goals-container');
+      if (goals.length === 0) {
+        container.innerHTML = `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center text-slate-500">
+            Belum ada target tabungan. Klik "+ Tambah Target" di atas untuk membuat rencana dana impian Anda!
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = goals.map(g => {
+        const pct = Math.min(100, Math.round((g.current / g.target) * 100));
+        return `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="font-bold text-xs text-slate-100">${g.name}</h4>
+                <p class="text-[10px] text-slate-400">Target: ${g.deadline}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-mono font-bold text-emerald-400">${pct}%</span>
+                <button onclick="deleteGoal(${g.id})" class="text-slate-600 hover:text-rose-400 text-xs p-1"><i class="fas fa-trash"></i></button>
+              </div>
+            </div>
+            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+              <div class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+            </div>
+            <div class="flex justify-between items-center text-[10px] font-mono text-slate-400">
+              <span>Terkumpul: Rp ${g.current.toLocaleString('id-ID')}</span>
+              <span>Target: Rp ${g.target.toLocaleString('id-ID')}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function handleSaveGoal(e) {
+      e.preventDefault();
+      const newGoal = {
+        id: Date.now(),
+        name: document.getElementById('goal-name').value,
+        target: parseFloat(document.getElementById('goal-target').value) || 0,
+        current: parseFloat(document.getElementById('goal-current').value) || 0,
+        deadline: document.getElementById('goal-deadline').value
+      };
+
+      goals.push(newGoal);
+      localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
+      closeGoalModal();
+      renderGoals();
+      document.getElementById('goal-name').value = '';
+      document.getElementById('goal-target').value = '';
+      document.getElementById('goal-current').value = '0';
+      document.getElementById('goal-deadline').value = '';
+    }
+
+    function deleteGoal(id) {
+      goals = goals.filter(g => g.id !== id);
+      localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
+      renderGoals();
+    }
+
+    // 7. Chart & AI Audit Helper
     function initChart() {
       const ctx = document.getElementById('categoryChart').getContext('2d');
       chartInstance = new Chart(ctx, {
@@ -478,9 +773,7 @@ Berikan:
           labels: [],
           datasets: [{
             data: [],
-            backgroundColor: [
-              '#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f43f5e', '#64748b'
-            ],
+            backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f43f5e', '#64748b'],
             borderWidth: 2,
             borderColor: '#0f172a'
           }]
@@ -489,10 +782,7 @@ Berikan:
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 12 }
-            }
+            legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 9 }, boxWidth: 10 } }
           }
         }
       });
@@ -502,14 +792,12 @@ Berikan:
     function updateChartData() {
       if (!chartInstance) return;
       const catMap = {};
-      
       transactions.filter(t => t.type === 'expense').forEach(t => {
         catMap[t.category] = (catMap[t.category] || 0) + t.nominal;
       });
 
       const labels = Object.keys(catMap);
       const data = Object.values(catMap);
-
       const emptyMsg = document.getElementById('chart-empty-msg');
       const canvasEl = document.getElementById('categoryChart');
 
@@ -525,14 +813,87 @@ Berikan:
       }
     }
 
-    // Render History Table
+    async function requestAiAudit() {
+      const apiKey = localStorage.getItem(API_KEY_STORAGE);
+      if (!apiKey) {
+        alert('Silakan masukkan OpenRouter API Key Anda terlebih dahulu.');
+        openApiKeyModal();
+        return;
+      }
+
+      if (transactions.length === 0) {
+        alert('Belum ada data transaksi untuk dievaluasi.');
+        return;
+      }
+
+      const box = document.getElementById('ai-insight-box');
+      box.textContent = '🧠 Sedang menganalisis rasio keuangan dan kebiasaan belanja Anda...';
+
+      const expList = transactions.filter(t => t.type === 'expense');
+      const incList = transactions.filter(t => t.type === 'income');
+      const totalExp = expList.reduce((s, t) => s + t.nominal, 0);
+      const totalInc = incList.reduce((s, t) => s + t.nominal, 0);
+
+      const catTotals = {};
+      expList.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + t.nominal; });
+
+      const auditPrompt = `Tolong evaluasi data keuangan saya:
+Total Pemasukan: Rp ${totalInc.toLocaleString('id-ID')}
+Total Pengeluaran: Rp ${totalExp.toLocaleString('id-ID')}
+Batas Anggaran Bulanan: Rp ${monthlyBudget.toLocaleString('id-ID')}
+Breakdown Kategori: ${JSON.stringify(catTotals)}
+Daftar transaksi terbaru: ${JSON.stringify(transactions.slice(0, 8))}
+
+Berikan:
+1. Penilaian kepatuhan rasio 50/30/20.
+2. Evaluasi pemicu kebocoran dana (micro-spending).
+3. 2 langkah taktis menghemat sisa jatah harian.`;
+
+      try {
+        const response = await fetchWithFallback({
+          modelIndex: 0,
+          apiKey: apiKey,
+          messages: [
+            { role: "system", content: "Anda adalah penasihat keuangan pribadi independen yang tajam dan solutif." },
+            { role: "user", content: auditPrompt }
+          ]
+        });
+
+        box.textContent = response.choices?.[0]?.message?.content || 'Gagal memuat evaluasi.';
+      } catch (err) {
+        box.textContent = '⚠️ Gagal menghubungi server AI: ' + err.message;
+      }
+    }
+
+    async function fetchWithFallback({ modelIndex, apiKey, messages }) {
+      const model = AI_MODELS[modelIndex] || AI_MODELS[0];
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey.trim()}`,
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'FinAI Manager'
+        },
+        body: JSON.stringify({ model: model, messages: messages })
+      });
+
+      const data = await res.json();
+      if (data.error && modelIndex < AI_MODELS.length - 1) {
+        return fetchWithFallback({ modelIndex: modelIndex + 1, apiKey, messages });
+      }
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+      return data;
+    }
+
+    // 8. History & Table Helper
     function renderHistoryTable() {
       const tbody = document.getElementById('history-table-body');
       if (transactions.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="7" class="p-8 text-center text-slate-500 font-sans">
-              Belum ada transaksi yang dicatat. Mulai ketik di tab Chat & Catat!
+            <td colspan="7" class="p-8 text-center text-slate-500">
+              Belum ada transaksi. Gunakan suara atau ketik di tab Catat!
             </td>
           </tr>
         `;
@@ -544,8 +905,6 @@ Berikan:
           ? '<span class="bg-emerald-950/80 text-emerald-400 border border-emerald-800 px-1.5 py-0.5 rounded text-[9px] font-bold">MASUK</span>'
           : '<span class="bg-rose-950/80 text-rose-400 border border-rose-800 px-1.5 py-0.5 rounded text-[9px] font-bold">KELUAR</span>';
 
-        const nominalColor = t.type === 'income' ? 'text-emerald-400' : 'text-rose-400';
-
         return `
           <tr class="hover:bg-slate-800/40 transition">
             <td class="p-2 text-center text-slate-500">${idx + 1}</td>
@@ -553,7 +912,7 @@ Berikan:
             <td class="p-2 font-bold text-slate-200">${t.description}</td>
             <td class="p-2 text-center">${typeBadge}</td>
             <td class="p-2 text-slate-300">${t.category}</td>
-            <td class="p-2 text-right font-bold ${nominalColor}">Rp ${t.nominal.toLocaleString('id-ID')}</td>
+            <td class="p-2 text-right font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}">Rp ${t.nominal.toLocaleString('id-ID')}</td>
             <td class="p-2 text-center">
               <button onclick="deleteTransaction(${t.id})" class="text-slate-500 hover:text-rose-400 transition p-1">
                 <i class="fas fa-trash-can"></i>
@@ -567,18 +926,14 @@ Berikan:
     function deleteTransaction(id) {
       transactions = transactions.filter(t => t.id !== id);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
-      renderSummary();
-      renderHistoryTable();
-      updateChartData();
+      renderAll();
     }
 
     function clearAllData() {
-      if (confirm('Hapus seluruh catatan keuangan?')) {
+      if (confirm('Hapus seluruh catatan transaksi keuangan?')) {
         transactions = [];
         localStorage.removeItem(STORAGE_KEY);
-        renderSummary();
-        renderHistoryTable();
-        updateChartData();
+        renderAll();
       }
     }
 
@@ -596,7 +951,6 @@ Berikan:
       a.click();
     }
 
-    // Chat UI Helper
     function appendChatMessage(role, text, id = null) {
       const box = document.getElementById('chat-box');
       const isUser = role === 'user';
@@ -627,30 +981,60 @@ Berikan:
     function switchTab(tab) {
       document.getElementById('tab-chat').classList.toggle('hidden', tab !== 'chat');
       document.getElementById('tab-charts').classList.toggle('hidden', tab !== 'charts');
+      document.getElementById('tab-goals').classList.toggle('hidden', tab !== 'goals');
       document.getElementById('tab-history').classList.toggle('hidden', tab !== 'history');
 
-      const activeBtn = 'flex-1 py-1.5 font-bold rounded-lg text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 text-center transition';
-      const inactiveBtn = 'flex-1 py-1.5 font-bold rounded-lg text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-800 text-center transition';
-
-      document.getElementById('tab-btn-chat').className = tab === 'chat' ? activeBtn : inactiveBtn;
-      document.getElementById('tab-btn-charts').className = tab === 'charts' ? activeBtn : inactiveBtn;
-      document.getElementById('tab-btn-history').className = tab === 'history' ? activeBtn : inactiveBtn;
+      const tabs = ['chat', 'charts', 'goals', 'history'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (t === tab) {
+          btn.className = 'py-1.5 font-bold rounded-lg text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 text-center transition';
+        } else {
+          btn.className = 'py-1.5 font-bold rounded-lg text-[11px] text-slate-400 bg-slate-950 border border-slate-800 text-center transition';
+        }
+      });
 
       if (tab === 'charts') updateChartData();
     }
 
-    // Modal API Key
+    // Modal Handlers
+    function openBudgetModal() {
+      document.getElementById('input-monthly-budget').value = monthlyBudget;
+      document.getElementById('budget-modal').classList.remove('hidden');
+      document.getElementById('budget-modal').classList.add('flex');
+    }
+    function closeBudgetModal() {
+      document.getElementById('budget-modal').classList.add('hidden');
+      document.getElementById('budget-modal').classList.remove('flex');
+    }
+    function saveBudget() {
+      const val = parseFloat(document.getElementById('input-monthly-budget').value);
+      if (val > 0) {
+        monthlyBudget = val;
+        localStorage.setItem(BUDGET_KEY, monthlyBudget.toString());
+        renderSummary();
+      }
+      closeBudgetModal();
+    }
+
+    function openGoalModal() {
+      document.getElementById('goal-modal').classList.remove('hidden');
+      document.getElementById('goal-modal').classList.add('flex');
+    }
+    function closeGoalModal() {
+      document.getElementById('goal-modal').classList.add('hidden');
+      document.getElementById('goal-modal').classList.remove('flex');
+    }
+
     function openApiKeyModal() {
       document.getElementById('input-api-key').value = localStorage.getItem(API_KEY_STORAGE) || '';
       document.getElementById('api-modal').classList.remove('hidden');
       document.getElementById('api-modal').classList.add('flex');
     }
-
     function closeApiKeyModal() {
       document.getElementById('api-modal').classList.add('hidden');
       document.getElementById('api-modal').classList.remove('flex');
     }
-
     function saveApiKey() {
       const val = document.getElementById('input-api-key').value.trim();
       if (val) {
