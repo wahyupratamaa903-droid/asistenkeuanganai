@@ -3,11 +3,12 @@ const OPENROUTER_API_KEY = atob("c2stb3ItdjEtOTJjMjU3ZTRkZDIxYzkyMjQxNjkwMmNiODV
 window.chartInstance = null;
 window.recognition = null;
 window.currentPeriod = 'all';
+window.goals = JSON.parse(localStorage.getItem('finai_goals_v1') || '[]');
 
 // Registrasi PWA Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => console.log('SW Registration failed: ', err));
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
 }
 
@@ -15,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initSpeechRecognition();
 });
 
-// 1. Filter Data Berdasarkan Rentang Waktu
+// 1. Filter Transaksi Periode
 function getFilteredTransactions() {
   const list = window.transactions || [];
   if (window.currentPeriod === 'all') return list;
@@ -60,6 +61,7 @@ function setPeriod(period) {
 function renderAll() {
   renderSummary();
   renderHistoryTable();
+  renderGoals();
   if (window.chartInstance) updateChartData();
 }
 
@@ -117,6 +119,7 @@ function parseNaturalLanguage(rawText) {
     else if (/belanja|shopee|tokopedia|tiktok|baju|celana|sepatu|skincare|supermarket|indomaret|alfamart/i.test(lower)) category = 'Belanja Harian';
     else if (/nonton|bioskop|game|topup|steam|netflix|spotify|karaoke|liburan|wisata/i.test(lower)) category = 'Hiburan & Santai';
     else if (/obat|apotek|dokter|vitamin|klinik|rs|rumah sakit|sehat/i.test(lower)) category = 'Kesehatan';
+    else if (/tabung|invest|emas|reksadana|sinking/i.test(lower)) category = 'Tabungan & Impian';
   }
   
   let desc = rawText.replace(/(\d+(?:[.,]\d+)?)\s*(juta|jt|ribu|rb|k)?/gi, '').replace(/^(beli|bayar|isi|buat|untuk|beliin)\s+/i, '').trim();
@@ -255,7 +258,6 @@ async function askAiConversation(promptText) {
   }
 }
 
-// 8. Evaluasi AI Advisor
 async function requestAiAudit() {
   const currentList = getFilteredTransactions();
   if (currentList.length === 0) return alert('Belum ada transaksi pada periode ini untuk dianalisis.');
@@ -287,7 +289,7 @@ async function requestAiAudit() {
   }
 }
 
-// 9. Render Metrik Saldo
+// 8. Render Metrik Saldo
 function renderSummary() {
   const currentList = getFilteredTransactions();
   let inc = 0, exp = 0;
@@ -302,6 +304,146 @@ function renderSummary() {
   document.getElementById('stat-expense').textContent = `Rp ${exp.toLocaleString('id-ID')}`;
 }
 
+// 9. Pelacak Sinking Fund & Tabungan Impian Presisi
+function renderGoals() {
+  const container = document.getElementById('goals-container');
+  if (!container) return;
+
+  if (!window.goals || window.goals.length === 0) {
+    container.innerHTML = `
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center text-slate-500">
+        Belum ada target impian. Klik "+ Tambah Target" di atas untuk menghitung alokasi harian dan mingguan secara presisi!
+      </div>
+    `;
+    return;
+  }
+
+  const now = new Date().getTime();
+
+  container.innerHTML = window.goals.map(g => {
+    const targetDate = new Date(g.deadline).getTime();
+    const diffTime = targetDate - now;
+    const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    const diffWeeks = Math.max(1, Math.ceil(diffDays / 7));
+
+    const remainingAmount = Math.max(0, g.target - g.current);
+    const dailyAllocation = Math.round(remainingAmount / diffDays);
+    const weeklyAllocation = Math.round(remainingAmount / diffWeeks);
+    const progressPct = Math.min(100, Math.round((g.current / g.target) * 100));
+    const isFinished = g.current >= g.target;
+
+    return `
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h4 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
+              <span>${g.name}</span>
+              ${isFinished ? '<span class="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[8px] px-1.5 py-0.2 rounded font-mono">TERCAPAI</span>' : ''}
+            </h4>
+            <p class="text-[10px] text-slate-400">Target: ${new Date(g.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} • <b class="text-cyan-400">${diffDays} hari lagi</b></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-mono font-bold text-emerald-400">${progressPct}%</span>
+            <button onclick="deleteGoal(${g.id})" class="text-slate-600 hover:text-rose-400 transition p-1"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="w-full bg-slate-950 rounded-full h-2.5 overflow-hidden border border-slate-800">
+          <div class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: ${progressPct}%"></div>
+        </div>
+
+        <div class="flex justify-between items-center text-[10px] font-mono text-slate-400">
+          <span>Terkumpul: <b class="text-slate-200">Rp ${g.current.toLocaleString('id-ID')}</b></span>
+          <span>Target: <b class="text-slate-200">Rp ${g.target.toLocaleString('id-ID')}</b></span>
+        </div>
+
+        <!-- Alokasi Presisi Harian & Mingguan -->
+        ${!isFinished ? `
+          <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 grid grid-cols-2 gap-2 text-center font-mono">
+            <div>
+              <span class="text-[9px] text-slate-500 block uppercase">Alokasi Harian</span>
+              <span class="text-xs font-bold text-cyan-400">Rp ${dailyAllocation.toLocaleString('id-ID')}/hr</span>
+            </div>
+            <div>
+              <span class="text-[9px] text-slate-500 block uppercase">Alokasi Mingguan</span>
+              <span class="text-xs font-bold text-amber-400">Rp ${weeklyAllocation.toLocaleString('id-ID')}/mgg</span>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Tombol Setor Tabungan -->
+        <div class="pt-1">
+          <button onclick="depositToGoal(${g.id})" class="w-full bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 font-bold py-2 rounded-xl text-[10px] flex items-center justify-center gap-1.5 transition">
+            <i class="fas fa-plus-circle"></i> Setor Tabungan dari Saldo
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openGoalModal() {
+  document.getElementById('goal-name').value = '';
+  document.getElementById('goal-target').value = '';
+  document.getElementById('goal-current').value = '0';
+  document.getElementById('goal-deadline').value = '';
+  document.getElementById('goal-modal').classList.remove('hidden');
+  document.getElementById('goal-modal').classList.add('flex');
+}
+
+function closeGoalModal() {
+  document.getElementById('goal-modal').classList.add('hidden');
+  document.getElementById('goal-modal').classList.remove('flex');
+}
+
+function handleSaveGoal(e) {
+  e.preventDefault();
+  const newGoal = {
+    id: Date.now(),
+    name: document.getElementById('goal-name').value.trim(),
+    target: parseFloat(document.getElementById('goal-target').value) || 0,
+    current: parseFloat(document.getElementById('goal-current').value) || 0,
+    deadline: document.getElementById('goal-deadline').value
+  };
+
+  window.goals.push(newGoal);
+  localStorage.setItem('finai_goals_v1', JSON.stringify(window.goals));
+  closeGoalModal();
+  renderGoals();
+}
+
+function deleteGoal(id) {
+  if (confirm('Hapus target impian ini?')) {
+    window.goals = window.goals.filter(g => g.id !== id);
+    localStorage.setItem('finai_goals_v1', JSON.stringify(window.goals));
+    renderGoals();
+  }
+}
+
+function depositToGoal(id) {
+  const goal = window.goals.find(g => g.id === id);
+  if (!goal) return;
+
+  const inputAmount = prompt(`Masukkan nominal setor tabungan untuk "${goal.name}" (Rp):`);
+  const amount = parseFloat(inputAmount);
+
+  if (amount && amount > 0) {
+    goal.current += amount;
+    localStorage.setItem('finai_goals_v1', JSON.stringify(window.goals));
+    
+    // Otomatis catat sebagai pengeluaran alokasi tabungan
+    recordTransaction({
+      description: `Tabungan: ${goal.name}`,
+      nominal: amount,
+      type: 'expense',
+      category: 'Tabungan & Impian'
+    });
+
+    renderGoals();
+  }
+}
+
 // 10. Render Tabel Riwayat dengan Pencarian & Filter Kategori
 function renderHistoryTable() {
   const tb = document.getElementById('history-table-body');
@@ -309,11 +451,9 @@ function renderHistoryTable() {
   
   let currentList = getFilteredTransactions();
 
-  // Ambil keyword pencarian
   const searchInput = document.getElementById('history-search-input');
   const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
-  // Ambil filter kategori
   const catFilter = document.getElementById('history-category-filter');
   const selectedCat = catFilter ? catFilter.value : 'ALL';
 
@@ -352,9 +492,9 @@ function deleteTransaction(id) {
   renderAll();
 }
 
-// 11. Navigasi Tab
+// 11. Navigasi 4 Tab
 function switchTab(selectedTab) {
-  const tabs = ['chat', 'charts', 'history'];
+  const tabs = ['chat', 'charts', 'goals', 'history'];
   
   tabs.forEach(t => {
     const section = document.getElementById(`tab-${t}`);
@@ -372,6 +512,8 @@ function switchTab(selectedTab) {
   if (selectedTab === 'charts') {
     if (!window.chartInstance) initChart();
     updateChartData();
+  } else if (selectedTab === 'goals') {
+    renderGoals();
   }
 }
 
@@ -385,7 +527,7 @@ function initChart() {
       labels: [], 
       datasets: [{ 
         data: [], 
-        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f43f5e', '#64748b'], 
+        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f43f5e', '#64748b', '#14b8a6'], 
         borderWidth: 2, 
         borderColor: '#0f172a' 
       }] 
@@ -442,7 +584,7 @@ async function handleReceiptUpload(event) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENROUTER_API_KEY.trim()}`,
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
           'HTTP-Referer': window.location.href,
           'X-Title': 'FinAI Assistant'
         },
@@ -505,7 +647,7 @@ function exportToCSV() {
   a.click();
 }
 
-// 15. Ekspor Rekap Visual PDF 1 Halaman
+// 15. Ekspor Rekap Visual PDF
 function exportVisualPDF() {
   const currentList = getFilteredTransactions();
   if (!currentList.length) return alert('Tidak ada data transaksi untuk diekspor ke PDF!');
@@ -603,7 +745,6 @@ function exportVisualPDF() {
           `).join('')}
         </tbody>
       </table>
-      ${currentList.length > 15 ? `<p style="font-size:9px; color:#94a3b8; margin-top:4px;">*Menampilkan 15 transaksi teratas.</p>` : ''}
     </div>
   `;
 

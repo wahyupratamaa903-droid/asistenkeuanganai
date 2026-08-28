@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FinAI - Asisten Keuangan Pintar</title>
   
-  <!-- PWA Meta Tags -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#090d16">
   <meta name="mobile-web-app-capable" content="yes">
@@ -75,8 +74,9 @@
             <p id="user-display-email" class="text-[10px] text-slate-400 truncate max-w-[200px]">user@gmail.com</p>
           </div>
         </div>
-        <button onclick="logoutGoogle()" class="bg-rose-950/60 hover:bg-rose-900/80 p-2 rounded-xl text-rose-300 transition" title="Logout">
-          <i class="fas fa-arrow-right-from-bracket"></i>
+
+        <button onclick="logoutGoogle()" class="bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/80 p-2 rounded-xl text-rose-300 transition" title="Logout">
+          <i class="fas fa-arrow-right-from-bracket text-[11px]"></i>
         </button>
       </div>
 
@@ -112,15 +112,18 @@
       </div>
 
       <!-- TAB NAVIGASI -->
-      <div class="grid grid-cols-3 gap-1.5 pt-1">
+      <div class="grid grid-cols-4 gap-1 pt-1">
         <button onclick="switchTab('chat')" id="tab-btn-chat" class="py-2 font-bold rounded-xl text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 transition">
-          <i class="fas fa-microphone mr-1"></i> Catat
+          <i class="fas fa-microphone"></i> Catat
         </button>
         <button onclick="switchTab('charts')" id="tab-btn-charts" class="py-2 font-bold rounded-xl text-[11px] text-slate-400 bg-slate-950 border border-slate-800 transition">
-          <i class="fas fa-chart-pie mr-1"></i> Analisis
+          <i class="fas fa-chart-pie"></i> Analisis
+        </button>
+        <button onclick="switchTab('goals')" id="tab-btn-goals" class="py-2 font-bold rounded-xl text-[11px] text-slate-400 bg-slate-950 border border-slate-800 transition">
+          <i class="fas fa-piggy-bank"></i> Impian
         </button>
         <button onclick="switchTab('history')" id="tab-btn-history" class="py-2 font-bold rounded-xl text-[11px] text-slate-400 bg-slate-950 border border-slate-800 transition">
-          <i class="fas fa-table-list mr-1"></i> Riwayat
+          <i class="fas fa-table-list"></i> Riwayat
         </button>
       </div>
     </header>
@@ -189,7 +192,24 @@
       </div>
     </section>
 
-    <!-- TAB 3: RIWAYAT (PENCARIAN, FILTER KATEGORI & EKSPOR PDF) -->
+    <!-- TAB 3: SINKING FUND & TABUNGAN IMPIAN PRESISI -->
+    <section id="tab-goals" class="hidden flex-1 w-full max-w-2xl mx-auto space-y-3">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-xl flex items-center justify-between">
+        <div>
+          <h2 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
+            <i class="fas fa-bullseye text-emerald-400"></i> Sinking Fund & Target Impian
+          </h2>
+          <p class="text-[10px] text-slate-400">Kalkulator alokasi harian & mingguan otomatis</p>
+        </div>
+        <button onclick="openGoalModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 transition">
+          <i class="fas fa-plus"></i> Tambah Target
+        </button>
+      </div>
+
+      <div id="goals-container" class="space-y-3"></div>
+    </section>
+
+    <!-- TAB 4: RIWAYAT -->
     <section id="tab-history" class="hidden flex-1 w-full max-w-4xl mx-auto space-y-2.5">
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl space-y-2">
         <div class="flex items-center justify-between">
@@ -222,6 +242,7 @@
             <option value="Kesehatan">Kesehatan</option>
             <option value="Keluarga & Transfer">Keluarga & Transfer</option>
             <option value="Gaji & Pendapatan">Gaji & Pendapatan</option>
+            <option value="Tabungan & Impian">Tabungan & Impian</option>
             <option value="Lainnya">Lainnya</option>
           </select>
         </div>
@@ -235,6 +256,39 @@
         </div>
       </div>
     </section>
+  </div>
+
+  <!-- MODAL: TAMBAH TARGET SINKING FUND -->
+  <div id="goal-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
+          <i class="fas fa-bullseye text-emerald-400"></i> Buat Target Impian Baru
+        </h3>
+        <button onclick="closeGoalModal()" class="text-slate-400 hover:text-slate-100"><i class="fas fa-times"></i></button>
+      </div>
+      <form onsubmit="handleSaveGoal(event)" class="space-y-2.5">
+        <div>
+          <label class="text-[10px] text-slate-400 block mb-1">Nama Target / Barang</label>
+          <input type="text" id="goal-name" placeholder="Beli Laptop / Servis Motor" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="text-[10px] text-slate-400 block mb-1">Target Nominal (Rp)</label>
+          <input type="number" id="goal-target" placeholder="6000000" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="text-[10px] text-slate-400 block mb-1">Terkumpul Saat Ini (Rp)</label>
+          <input type="number" id="goal-current" placeholder="0" value="0" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-emerald-500">
+        </div>
+        <div>
+          <label class="text-[10px] text-slate-400 block mb-1">Tenggat Waktu (Target Tanggal)</label>
+          <input type="date" id="goal-deadline" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-emerald-500">
+        </div>
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition mt-2">
+          Simpan Target
+        </button>
+      </form>
+    </div>
   </div>
 
   <script src="js/auth.js"></script>
