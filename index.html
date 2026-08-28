@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 
-  <!-- Firebase SDK -->
+  <!-- SDK Google & Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -19,15 +19,13 @@
     .sheet-table td { border: 1px solid #1f2937; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    @keyframes pulse-red { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(1.1)} }
-    .recording-active { animation: pulse-red 1s infinite; background-color: #e11d48 !important; color: white !important; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .spin { animation: spin 1s linear infinite; }
   </style>
 </head>
 <body class="text-slate-200 text-xs min-h-screen">
 
-  <!-- ================= SCREEN 1: LOGIN ================= -->
+  <!-- ================= LAYAR LOGIN ================= -->
   <div id="login-screen" class="min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-sm space-y-6">
       <div class="text-center space-y-2">
@@ -35,16 +33,17 @@
           <i class="fas fa-wallet"></i>
         </div>
         <h1 class="text-xl font-black text-white tracking-wide">FinAI</h1>
-        <p class="text-slate-400 text-xs">Asisten Keuangan Pintar & Cloud Sync</p>
+        <p class="text-slate-400 text-xs">Asisten Keuangan Cloud Sync</p>
       </div>
 
       <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-2xl backdrop-blur">
         <p class="text-center text-slate-300 text-xs leading-relaxed">
-          Masuk dengan Google agar data riwayat keuangan tersimpan aman di cloud & sinkron di semua HP Anda.
+          Masuk dengan akun Google agar data riwayat keuangan tersimpan aman di cloud & tersinkronisasi di semua HP Anda.
         </p>
 
+        <!-- Tombol Login Google Utama -->
         <button onclick="signInWithGoogle()" id="btn-google-login"
-          class="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-100 text-slate-800 font-bold py-3 rounded-xl transition text-xs shadow-lg">
+          class="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-100 text-slate-800 font-bold py-3.5 rounded-xl transition text-xs shadow-xl active:scale-95">
           <svg class="w-4 h-4" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -56,22 +55,16 @@
 
         <div id="login-error" class="hidden text-center text-rose-400 text-[11px] bg-rose-950/40 border border-rose-800/50 rounded-lg p-2"></div>
       </div>
-
-      <div class="text-center">
-        <button onclick="openSetupModal()" class="text-slate-500 hover:text-slate-300 text-[11px] transition underline">
-          <i class="fas fa-gear mr-1"></i> Pengaturan Kunci Firebase (Pertama Kali)
-        </button>
-      </div>
     </div>
   </div>
 
-  <!-- ================= SCREEN 2: MAIN DASHBOARD ================= -->
+  <!-- ================= LAYAR UTAMA (DASHBOARD) ================= -->
   <div id="main-app" class="hidden min-h-screen flex flex-col p-2 md:p-4 max-w-4xl mx-auto">
-    <!-- Top Header -->
     <header class="bg-slate-900 border border-slate-800 rounded-2xl p-3 mb-3 shadow-xl space-y-2.5">
       <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
         <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
+          <img id="user-avatar" src="" alt="Avatar" class="w-8 h-8 rounded-full border border-slate-700 hidden">
+          <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm" id="default-avatar">
             <i class="fas fa-wallet"></i>
           </div>
           <div>
@@ -83,19 +76,16 @@
           <span id="sync-indicator" class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-1 rounded-lg">
             <i class="fas fa-cloud"></i> Sync
           </span>
-          <button onclick="openBudgetModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition" title="Set Budget">
-            <i class="fas fa-sliders text-emerald-400"></i>
-          </button>
-          <button onclick="openApiKeyModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition" title="API Key">
+          <button onclick="openApiKeyModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition" title="API Key Gemini">
             <i class="fas fa-key text-amber-400"></i>
           </button>
-          <button onclick="signOutUser()" class="text-[10px] bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800 px-2 py-1 rounded-lg transition" title="Logout">
+          <button onclick="signOutUser()" class="text-[10px] bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800 px-2 py-1 rounded-lg transition" title="Keluar">
             <i class="fas fa-right-from-bracket"></i>
           </button>
         </div>
       </div>
 
-      <!-- Live Metrics -->
+      <!-- Ringkasan Finansial -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
         <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
           <span class="text-[9px] text-slate-500 block uppercase">Pemasukan</span>
@@ -115,7 +105,7 @@
         </div>
       </div>
 
-      <!-- Nav Switcher -->
+      <!-- Tab Navigation -->
       <div class="grid grid-cols-4 gap-1 pt-1">
         <button onclick="switchTab('chat')" id="tab-btn-chat" class="py-1.5 font-bold rounded-lg text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800 text-center transition">
           <i class="fas fa-microphone"></i> Catat
@@ -132,7 +122,7 @@
       </div>
     </header>
 
-    <!-- TAB 1: Chat, Voice, Scan -->
+    <!-- TAB 1: Chat Input -->
     <section id="tab-chat" class="flex-1 flex flex-col justify-between max-w-2xl w-full mx-auto">
       <div id="chat-box" class="flex-1 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 space-y-3 overflow-y-auto max-h-[52vh] shadow-inner">
         <div class="flex items-start gap-2.5">
@@ -140,26 +130,18 @@
             <i class="fas fa-robot"></i>
           </div>
           <div class="bg-slate-800/90 border border-slate-700 p-3 rounded-2xl rounded-tl-none text-slate-200 text-xs leading-relaxed max-w-[85%]">
-            Data Anda kini otomatis tersimpan di cloud. Silakan catat transaksi via:
+            Data tersimpan otomatis di akun Google Anda. Gunakan suara, foto struk, atau ketik langsung untuk mencatat:
             <div class="mt-2 space-y-1 font-mono text-[11px] text-emerald-300">
-              <div>• <b>Suara:</b> Ucapkan <i>"beli bensin tiga puluh ribu"</i></div>
-              <div>• <b>Kamera:</b> Foto struk belanja supermarket/kasir</div>
-              <div>• <b>Ketik Bebas:</b> Cth: <i>"kopi 25rb"</i>, <i>"gaji 5jt"</i></div>
+              <div>• <b>Suara:</b> "beli bensin tiga puluh ribu"</div>
+              <div>• <b>Kamera:</b> Foto struk belanja kasir</div>
+              <div>• <b>Ketik:</b> "kopi 25rb", "gaji 5jt"</div>
             </div>
           </div>
         </div>
       </div>
 
       <div class="mt-3 space-y-2">
-        <div class="flex gap-1.5 overflow-x-auto pb-1 text-[10px] no-scrollbar">
-          <button onclick="fillInput('beli kopi 25rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">☕ Kopi 25rb</button>
-          <button onclick="fillInput('setor orang tua 1jt')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">👨‍👩‍👦 Setor Ortu 1jt</button>
-          <button onclick="fillInput('isi bensin 30rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">⛽ Bensin 30rb</button>
-          <button onclick="fillInput('gaji masuk 5000000')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">💵 Gaji 5jt</button>
-        </div>
-
         <input type="file" id="receipt-file-input" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
-
         <form onsubmit="handleUserInput(event)" class="flex items-center gap-1.5">
           <button type="button" id="btn-voice" onclick="toggleVoiceRecording()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 w-9 h-9 rounded-xl flex items-center justify-center transition flex-shrink-0">
             <i class="fas fa-microphone text-xs"></i>
@@ -167,112 +149,36 @@
           <button type="button" onclick="document.getElementById('receipt-file-input').click()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-400 w-9 h-9 rounded-xl flex items-center justify-center transition flex-shrink-0">
             <i class="fas fa-camera text-xs"></i>
           </button>
-          <input type="text" id="chat-input" placeholder="Ucapkan suara atau ketik..." required class="flex-1 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none transition">
-          <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1 transition flex-shrink-0">
+          <input type="text" id="chat-input" placeholder="Ucapkan suara atau ketik..." required class="flex-1 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none transition">
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition flex-shrink-0">
             <i class="fas fa-paper-plane text-[10px]"></i>
           </button>
         </form>
       </div>
     </section>
 
-    <!-- TAB 2: Analysis & Charts -->
+    <!-- TAB 2: Analisis -->
     <section id="tab-charts" class="hidden flex-1 max-w-2xl w-full mx-auto space-y-3">
-      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-          <h2 class="font-bold text-xs text-slate-200 uppercase tracking-wider flex items-center gap-2">
-            <i class="fas fa-heart-pulse text-rose-400"></i> Rasio 50/30/20 Keuangan
-          </h2>
-          <span id="health-grade-badge" class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full font-bold">PRIMA</span>
-        </div>
-        <div class="space-y-2 text-[11px] font-mono">
-          <div>
-            <div class="flex justify-between text-[10px] mb-1">
-              <span class="text-slate-400">Kebutuhan Pokok (Maks 50%)</span>
-              <span id="ratio-needs-pct" class="font-bold text-cyan-400">0%</span>
-            </div>
-            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
-              <div id="ratio-needs-bar" class="bg-cyan-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-            </div>
-          </div>
-          <div>
-            <div class="flex justify-between text-[10px] mb-1">
-              <span class="text-slate-400">Keinginan & Gaya Hidup (Maks 30%)</span>
-              <span id="ratio-wants-pct" class="font-bold text-amber-400">0%</span>
-            </div>
-            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
-              <div id="ratio-wants-bar" class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-            </div>
-          </div>
-          <div>
-            <div class="flex justify-between text-[10px] mb-1">
-              <span class="text-slate-400">Tabungan / Sisa Saldo (Min 20%)</span>
-              <span id="ratio-savings-pct" class="font-bold text-emerald-400">0%</span>
-            </div>
-            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
-              <div id="ratio-savings-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
         <h2 class="font-bold text-xs text-slate-200 uppercase tracking-wider flex items-center gap-2 mb-3 border-b border-slate-800 pb-2">
-          <i class="fas fa-chart-pie text-emerald-400"></i> Diagram Kategori Pengeluaran
+          <i class="fas fa-chart-pie text-emerald-400"></i> Diagram Pengeluaran
         </h2>
         <div class="w-full max-w-[200px] mx-auto h-[200px] relative">
           <canvas id="categoryChart"></canvas>
         </div>
-        <div id="chart-empty-msg" class="text-center text-slate-500 py-6 text-xs hidden">
-          Belum ada data pengeluaran.
-        </div>
-      </div>
-
-      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-2.5">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-          <h3 class="font-bold text-xs text-slate-200 flex items-center gap-2">
-            <i class="fas fa-brain text-purple-400"></i> AI Financial Advisor
-          </h3>
-          <button onclick="requestAiAudit()" class="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
-            <i class="fas fa-wand-magic-sparkles"></i> Analisis AI
-          </button>
-        </div>
-        <div id="ai-insight-box" class="text-xs text-slate-300 leading-relaxed bg-slate-950/60 border border-slate-800 rounded-xl p-3 whitespace-pre-wrap min-h-[60px]">
-          Klik "Analisis AI" untuk evaluasi komprehensif kebiasaan belanja Anda.
-        </div>
       </div>
     </section>
 
-    <!-- TAB 3: Goals -->
+    <!-- TAB 3: Impian -->
     <section id="tab-goals" class="hidden flex-1 max-w-2xl w-full mx-auto space-y-3">
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-xl flex items-center justify-between">
-        <div>
-          <h2 class="font-bold text-xs text-slate-100 uppercase">Target Tabungan & Impian</h2>
-          <p class="text-[10px] text-slate-400">Tersinkronisasi otomatis ke akun Google</p>
-        </div>
-        <button onclick="openGoalModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
-          <i class="fas fa-plus"></i> Tambah Target
-        </button>
+        <h2 class="font-bold text-xs text-slate-100 uppercase">Target Tabungan</h2>
       </div>
       <div id="goals-container" class="space-y-2.5"></div>
     </section>
 
-    <!-- TAB 4: Spreadsheet History -->
+    <!-- TAB 4: Riwayat -->
     <section id="tab-history" class="hidden flex-1 max-w-4xl w-full mx-auto space-y-3">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl flex items-center justify-between gap-2">
-        <div>
-          <h2 class="font-bold text-xs text-slate-100">Daftar Transaksi Lengkap</h2>
-          <p class="text-[10px] text-slate-400">Tersimpan di Cloud Database Firestore</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <button onclick="exportToCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition text-[11px]">
-            <i class="fas fa-file-csv text-emerald-400"></i> Unduh CSV
-          </button>
-          <button onclick="clearAllData()" class="bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800 font-bold px-2.5 py-1.5 rounded-lg transition text-[11px]">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
-      </div>
-
       <div class="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
         <div class="overflow-x-auto max-h-[65vh]">
           <table class="sheet-table w-full text-left border-collapse font-mono text-[11px]">
@@ -294,116 +200,42 @@
     </section>
   </div>
 
-  <!-- ================= MODALS ================= -->
-  <!-- Firebase Setup Modal -->
-  <div id="setup-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
-    <div class="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl p-5 space-y-3.5 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-        <h3 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
-          <i class="fas fa-database text-emerald-400"></i> Setup Firebase Config
-        </h3>
-        <button onclick="closeModal('setup-modal')" class="text-slate-400 hover:text-slate-100"><i class="fas fa-times"></i></button>
-      </div>
-      <p class="text-[10px] text-slate-400 leading-relaxed">
-        Masukkan konfigurasi dari <b>Firebase Console -> Project Settings -> Web Apps</b>:
-      </p>
-      <div class="space-y-2">
-        <input type="text" id="cfg-apiKey" placeholder="apiKey (AIzaSy...)" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-[11px] text-slate-200 font-mono">
-        <input type="text" id="cfg-authDomain" placeholder="authDomain (namaproject.firebaseapp.com)" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-[11px] text-slate-200 font-mono">
-        <input type="text" id="cfg-projectId" placeholder="projectId (namaproject)" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-[11px] text-slate-200 font-mono">
-        <input type="text" id="cfg-storageBucket" placeholder="storageBucket (namaproject.appspot.com)" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-[11px] text-slate-200 font-mono">
-        <input type="text" id="cfg-appId" placeholder="appId (1:123456...)" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-[11px] text-slate-200 font-mono">
-      </div>
-      <button onclick="saveFirebaseConfig()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition">
-        Simpan Konfigurasi
-      </button>
-    </div>
-  </div>
-
-  <!-- Budget Modal -->
-  <div id="budget-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
-    <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-        <h3 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
-          <i class="fas fa-sliders text-emerald-400"></i> Batas Anggaran Bulanan
-        </h3>
-        <button onclick="closeModal('budget-modal')" class="text-slate-400 hover:text-slate-100"><i class="fas fa-times"></i></button>
-      </div>
-      <input type="number" id="input-monthly-budget" placeholder="2000000" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-amber-400 font-bold font-mono focus:outline-none focus:border-emerald-500">
-      <button onclick="saveBudget()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition">
-        Simpan Anggaran
-      </button>
-    </div>
-  </div>
-
-  <!-- Goals Modal -->
-  <div id="goal-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
-    <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-        <h3 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
-          <i class="fas fa-bullseye text-emerald-400"></i> Target Impian
-        </h3>
-        <button onclick="closeModal('goal-modal')" class="text-slate-400 hover:text-slate-100"><i class="fas fa-times"></i></button>
-      </div>
-      <form onsubmit="handleSaveGoal(event)" class="space-y-2.5">
-        <input type="text" id="goal-name" placeholder="Beli Laptop / Dana Darurat" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200">
-        <input type="number" id="goal-target" placeholder="Target Nominal (Cth: 5000000)" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200 font-mono">
-        <input type="number" id="goal-current" placeholder="Sudah Terkumpul (Cth: 500000)" value="0" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200 font-mono">
-        <input type="text" id="goal-deadline" placeholder="Tenggat (Cth: Des 2026)" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200">
-        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition mt-2">
-          Simpan Target
-        </button>
-      </form>
-    </div>
-  </div>
-
-  <!-- API Key Modal -->
+  <!-- Modal API Key -->
   <div id="api-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
     <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-        <h3 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
-          <i class="fas fa-key text-amber-400"></i> OpenRouter API Key
-        </h3>
-        <button onclick="closeModal('api-modal')" class="text-slate-400 hover:text-slate-100"><i class="fas fa-times"></i></button>
-      </div>
-      <p class="text-[10px] text-slate-400 leading-relaxed">
-        Diperlukan untuk fitur AI Advisor dan Scan Struk via Gemini Vision.
-      </p>
-      <input type="password" id="input-api-key" placeholder="sk-or-v1-..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
-      <button onclick="saveApiKey()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition">
-        Simpan Kunci
-      </button>
+      <h3 class="font-bold text-xs text-slate-100"><i class="fas fa-key text-amber-400"></i> OpenRouter API Key</h3>
+      <input type="password" id="input-api-key" placeholder="sk-or-v1-..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100">
+      <button onclick="saveApiKey()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs">Simpan Kunci</button>
     </div>
   </div>
 
-  <!-- ================= LOGIC & SCRIPT ================= -->
+  <!-- SCRIPT UTAMA -->
   <script>
-    const FB_CONFIG_KEY = 'finai_firebase_config_v1';
-    const API_KEY_STORAGE = 'finai_openrouter_key';
-    const LOCAL_BUDGET_KEY = 'finai_monthly_budget_v1';
+    // =========================================================================
+    // PASTE KUNCI FIREBASE ANDA DI BAGIAN INI (HANYA SEKALI SAJA)
+    // =========================================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyYOUR_ACTUAL_API_KEY",
+      authDomain: "your-app.firebaseapp.com",
+      projectId: "your-app-id",
+      storageBucket: "your-app.appspot.com",
+      messagingSenderId: "1234567890",
+      appId: "1:1234567890:web:abcdef"
+    };
 
     let db = null;
     let auth = null;
     let currentUser = null;
-
     let transactions = [];
     let goals = [];
-    let monthlyBudget = parseFloat(localStorage.getItem(LOCAL_BUDGET_KEY) || '2000000');
-    let chartInstance = null;
-    let recognition = null;
-    let isRecording = false;
 
     document.addEventListener('DOMContentLoaded', () => {
-      initFirebaseApp();
-      initSpeechRecognition();
+      initFirebase();
     });
 
-    function initFirebaseApp() {
-      const cfgStr = localStorage.getItem(FB_CONFIG_KEY);
-      if (!cfgStr) return;
+    function initFirebase() {
       try {
-        const config = JSON.parse(cfgStr);
-        if (!firebase.apps.length) firebase.initializeApp(config);
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         db = firebase.firestore();
         auth = firebase.auth();
 
@@ -411,37 +243,25 @@
           if (user) {
             currentUser = user;
             showDashboard();
-            loadUserDataFromCloud();
+            loadCloudData();
           } else {
             currentUser = null;
             showLoginScreen();
           }
         });
-      } catch (err) {
-        console.error('Firebase Error:', err);
+      } catch (e) {
+        console.log("Firebase belum diisi/salah config", e);
       }
     }
 
-    function showDashboard() {
-      document.getElementById('login-screen').classList.add('hidden');
-      document.getElementById('main-app').classList.remove('hidden');
-      document.getElementById('user-display-email').textContent = currentUser.email || 'Cloud Connected';
-      renderAll();
-      initChart();
-    }
-
-    function showLoginScreen() {
-      document.getElementById('login-screen').classList.remove('hidden');
-      document.getElementById('main-app').classList.add('hidden');
-    }
-
+    // MEMANGGIL PILIHAN AKUN GOOGLE NATIVE (SEPERTI DI GAMBAR ACCURATE LITE)
     function signInWithGoogle() {
       if (!auth) {
-        alert('Silakan lengkapi Konfigurasi Firebase terlebih dahulu di menu bawah.');
-        openSetupModal();
+        alert("Konfigurasi Firebase belum terpasang di kode index.html.");
         return;
       }
       const provider = new firebase.auth.GoogleAuthProvider();
+      // Menggunakan popup native Google
       auth.signInWithPopup(provider).catch(err => {
         const errDiv = document.getElementById('login-error');
         errDiv.textContent = 'Gagal masuk: ' + err.message;
@@ -453,428 +273,73 @@
       if (auth) auth.signOut();
     }
 
-    async function loadUserDataFromCloud() {
+    function showDashboard() {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('main-app').classList.remove('hidden');
+      document.getElementById('user-display-email').textContent = currentUser.email || 'Cloud Account';
+      if (currentUser.photoURL) {
+        const img = document.getElementById('user-avatar');
+        img.src = currentUser.photoURL;
+        img.classList.remove('hidden');
+        document.getElementById('default-avatar').classList.add('hidden');
+      }
+    }
+
+    function showLoginScreen() {
+      document.getElementById('login-screen').classList.remove('hidden');
+      document.getElementById('main-app').classList.add('hidden');
+    }
+
+    async function loadCloudData() {
       if (!db || !currentUser) return;
-      setSyncStatus('syncing');
-
       try {
-        const uid = currentUser.uid;
-        // Transaksi
-        const trxSnap = await db.collection('users').doc(uid).collection('transactions').orderBy('timestamp', 'desc').get();
-        transactions = trxSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        // Goals
-        const goalSnap = await db.collection('users').doc(uid).collection('goals').get();
-        goals = goalSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        // Settings
-        const setDoc = await db.collection('users').doc(uid).collection('settings').doc('budget').get();
-        if (setDoc.exists && setDoc.data().amount) {
-          monthlyBudget = setDoc.data().amount;
-        }
-
+        const snap = await db.collection('users').doc(currentUser.uid).collection('transactions').orderBy('timestamp', 'desc').get();
+        transactions = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderAll();
-        setSyncStatus('ready');
-      } catch (err) {
-        console.error(err);
-        setSyncStatus('error');
+      } catch (e) {
+        console.error("Gagal load data cloud", e);
       }
     }
 
-    async function addTransactionToCloud(item) {
+    async function addTransaction(item) {
       if (!db || !currentUser) return;
-      setSyncStatus('syncing');
-      try {
-        const docRef = await db.collection('users').doc(currentUser.uid).collection('transactions').add({
-          date: item.date,
-          description: item.description,
-          type: item.type,
-          category: item.category,
-          nominal: item.nominal,
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        item.id = docRef.id;
-        transactions.unshift(item);
-        renderAll();
-        setSyncStatus('ready');
-      } catch (err) {
-        console.error(err);
-        setSyncStatus('error');
-      }
-    }
-
-    async function deleteTransactionFromCloud(id) {
-      if (!db || !currentUser) return;
-      setSyncStatus('syncing');
-      try {
-        await db.collection('users').doc(currentUser.uid).collection('transactions').doc(id).delete();
-        transactions = transactions.filter(t => t.id !== id);
-        renderAll();
-        setSyncStatus('ready');
-      } catch (err) {
-        setSyncStatus('error');
-      }
-    }
-
-    function setSyncStatus(state) {
-      const el = document.getElementById('sync-indicator');
-      if (!el) return;
-      if (state === 'ready') el.innerHTML = '<i class="fas fa-cloud"></i> Sync';
-      else if (state === 'syncing') el.innerHTML = '<i class="fas fa-spinner spin"></i> Syncing...';
-      else el.innerHTML = '<i class="fas fa-triangle-exclamation text-rose-400"></i> Error';
-    }
-
-    // Number Converter
-    function normalizeIndonesianWords(text) {
-      let s = text.toLowerCase()
-        .replace(/setengah juta/g, '500000')
-        .replace(/sejuta/g, '1000000')
-        .replace(/seribu/g, '1000')
-        .replace(/seratus ribu/g, '100000')
-        .replace(/seratus/g, '100')
-        .replace(/sepuluh ribu/g, '10000')
-        .replace(/sepuluh/g, '10');
-
-      const u = { 'satu': 1, 'dua': 2, 'tiga': 3, 'empat': 4, 'lima': 5, 'enam': 6, 'tujuh': 7, 'delapan': 8, 'sembilan': 9 };
-      s = s.replace(/(satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)\s*juta/g, (m, p1) => (u[p1] * 1000000).toString());
-      s = s.replace(/(satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)\s*ratus\s*ribu/g, (m, p1) => (u[p1] * 100000).toString());
-      s = s.replace(/(satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)\s*puluh\s*ribu/g, (m, p1) => (u[p1] * 10000).toString());
-      s = s.replace(/(satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)\s*ribu/g, (m, p1) => (u[p1] * 1000).toString());
-      return s;
-    }
-
-    function parseNaturalLanguage(rawText) {
-      const normalized = normalizeIndonesianWords(rawText);
-      const lower = normalized.toLowerCase().trim();
-
-      let nominal = 0;
-      const numMatch = lower.match(/(\d+(?:[.,]\d+)?)\s*(juta|jt|ribu|rb|k)?/i);
-
-      if (numMatch) {
-        let rawNum = parseFloat(numMatch[1].replace(',', '.'));
-        const unit = numMatch[2] ? numMatch[2].toLowerCase() : '';
-        if (unit === 'juta' || unit === 'jt') nominal = rawNum * 1000000;
-        else if (unit === 'ribu' || unit === 'rb' || unit === 'k') nominal = rawNum * 1000;
-        else {
-          if (numMatch[1].includes('.') && rawNum < 1000) nominal = parseInt(numMatch[1].replace(/\./g, ''));
-          else nominal = rawNum;
-        }
-      }
-
-      if (!nominal || nominal <= 0) return null;
-
-      const incomeKeywords = ['gaji', 'income', 'masuk', 'cair', 'bonus', 'dividen', 'profit'];
-      let type = 'expense';
-      if (incomeKeywords.some(kw => lower.includes(kw)) && !lower.includes('setor') && !lower.includes('kirim')) {
-        type = 'income';
-      }
-
-      let category = type === 'income' ? 'Gaji & Pendapatan' : 'Lainnya';
-      if (type === 'expense') {
-        if (/setor|orang tua|keluarga|ortu|ibu|ayah/i.test(lower)) category = 'Keluarga & Transfer';
-        else if (/kopi|makan|minum|resto|warteg|snack|jajan|nasi|ayam/i.test(lower)) category = 'Makanan & Minuman';
-        else if (/bensin|pertalite|parkir|gojek|grab|ojol|tol|kereta/i.test(lower)) category = 'Transportasi';
-        else if (/listrik|token|pln|pdam|wifi|internet|pulsa|kos|bpjs/i.test(lower)) category = 'Tagihan & Utilitas';
-        else if (/belanja|shopee|tokopedia|baju|sepatu|supermarket/i.test(lower)) category = 'Belanja Harian';
-        else if (/nonton|bioskop|game|topup|netflix|spotify/i.test(lower)) category = 'Hiburan & Santai';
-        else if (/obat|apotek|dokter|vitamin/i.test(lower)) category = 'Kesehatan';
-        else if (/tabung|invest|emas|saham|crypto/i.test(lower)) category = 'Tabungan & Investasi';
-      }
-
-      let description = rawText.replace(/(\d+(?:[.,]\d+)?)\s*(juta|jt|ribu|rb|k)?/gi, '').trim();
-      description = description.replace(/^(beli|bayar|isi|buat|untuk)\s+/i, '');
-      if (!description) description = category;
-      description = description.charAt(0).toUpperCase() + description.slice(1);
-
-      return {
-        description,
-        nominal,
-        type,
-        category,
+      const data = {
+        ...item,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
       };
+      const docRef = await db.collection('users').doc(currentUser.uid).collection('transactions').add(data);
+      data.id = docRef.id;
+      transactions.unshift(data);
+      renderAll();
     }
 
-    function initSpeechRecognition() {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SR) {
-        recognition = new SR();
-        recognition.lang = 'id-ID';
-        recognition.continuous = false;
-        recognition.interimResults = false;
-
-        recognition.onresult = (event) => {
-          const transcript = event.results[0][0].transcript;
-          document.getElementById('chat-input').value = transcript;
-          toggleVoiceRecording(false);
-          handleUserInput();
-        };
-        recognition.onerror = () => toggleVoiceRecording(false);
-        recognition.onend = () => toggleVoiceRecording(false);
-      }
-    }
-
-    function toggleVoiceRecording(forceState) {
-      const btn = document.getElementById('btn-voice');
-      if (!recognition) {
-        alert('Fitur suara tidak didukung browser ini. Gunakan Google Chrome.');
-        return;
-      }
-      isRecording = forceState !== undefined ? forceState : !isRecording;
-      if (isRecording) {
-        btn.classList.add('recording-active');
-        try { recognition.start(); } catch (e) {}
-      } else {
-        btn.classList.remove('recording-active');
-        try { recognition.stop(); } catch (e) {}
-      }
-    }
-
-    function compressImageFile(file, maxWidth = 1024, quality = 0.8) {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (event) => {
-          const img = new Image();
-          img.src = event.target.result;
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            let width = img.width;
-            let height = img.height;
-            if (width > maxWidth) {
-              height = Math.round((height * maxWidth) / width);
-              width = maxWidth;
-            }
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', quality));
-          };
-        };
-      });
-    }
-
-    async function handleReceiptUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const apiKey = localStorage.getItem(API_KEY_STORAGE);
-      if (!apiKey) {
-        alert('Fitur Scan Struk memerlukan API Key. Silakan masukkan di tombol API.');
-        openApiKeyModal();
-        return;
-      }
-
-      const loaderId = 'loader-receipt-' + Date.now();
-      appendChatMessage('assistant', '📷 Sedang menganalisis struk belanja dengan AI Vision...', loaderId);
-
-      try {
-        const base64Compressed = await compressImageFile(file);
-        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey.trim()}`,
-            'HTTP-Referer': window.location.origin,
-            'X-Title': 'FinAI Scanner'
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.0-flash-001',
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: 'Ekstrak total nominal belanja dan nama toko/item dari struk ini. Wajib kembalikan format JSON: {"description": "Nama Toko / Barang", "nominal": 25000, "category": "Makanan & Minuman"}'
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: { url: base64Compressed }
-                  }
-                ]
-              }
-            ]
-          })
-        });
-
-        const data = await res.json();
-        document.getElementById(loaderId)?.remove();
-
-        const content = data.choices?.[0]?.message?.content || '';
-        const jsonMatch = content.match(/\{[\s\S]*?\}/);
-
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed && parsed.nominal) {
-            const trx = {
-              description: parsed.description || 'Struk Belanja',
-              nominal: parseFloat(parsed.nominal),
-              type: 'expense',
-              category: parsed.category || 'Belanja Harian',
-              date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
-            };
-            addTransactionToCloud(trx);
-            appendChatMessage('assistant', `🧾 **Struk Dicatat!**\n• **Item:** ${trx.description}\n• **Total:** Rp ${trx.nominal.toLocaleString('id-ID')}\n• **Kategori:** ${trx.category}`);
-            return;
-          }
-        }
-        appendChatMessage('assistant', '⚠️ Tidak dapat membaca nominal struk. Pastikan foto jelas dan fokus.');
-      } catch (err) {
-        document.getElementById(loaderId)?.remove();
-        appendChatMessage('assistant', '⚠️ Gagal membaca struk: ' + err.message);
-      } finally {
-        event.target.value = '';
-      }
-    }
-
-    async function handleUserInput(e) {
-      if (e) e.preventDefault();
-      const inputEl = document.getElementById('chat-input');
-      const text = inputEl.value.trim();
-      if (!text) return;
-
-      appendChatMessage('user', text);
-      inputEl.value = '';
-
-      const parsed = parseNaturalLanguage(text);
-      if (parsed) {
-        addTransactionToCloud(parsed);
-        const label = parsed.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
-        appendChatMessage('assistant', `✅ **${label} Dicatat!**\n• **Item:** ${parsed.description}\n• **Nominal:** Rp ${parsed.nominal.toLocaleString('id-ID')}\n• **Kategori:** ${parsed.category}`);
-      } else {
-        await askAiConversation(text);
-      }
-    }
-
-    async function askAiConversation(promptText) {
-      const apiKey = localStorage.getItem(API_KEY_STORAGE);
-      if (!apiKey) {
-        appendChatMessage('assistant', '💡 Masukkan API Key di kanan atas untuk konsultasi bebas dengan AI.');
-        return;
-      }
-
-      const loaderId = 'loading-' + Date.now();
-      appendChatMessage('assistant', '<span class="animate-pulse">Sedang berpikir...</span>', loaderId);
-
-      try {
-        const totalExp = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.nominal, 0);
-        const totalInc = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.nominal, 0);
-
-        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey.trim()}`,
-            'HTTP-Referer': window.location.origin,
-            'X-Title': 'FinAI Manager'
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.0-flash-001',
-            messages: [
-              {
-                role: 'system',
-                content: `Anda adalah FinAI, asisten keuangan pribadi. Saldo Pemasukan: Rp ${totalInc.toLocaleString('id-ID')}, Pengeluaran: Rp ${totalExp.toLocaleString('id-ID')}. Jika user sebut transaksi, beri JSON di akhir: {"record": {"description": "Item", "nominal": 25000, "type": "expense|income", "category": "Kategori"}}`
-              },
-              { role: 'user', content: promptText }
-            ]
-          })
-        });
-
-        const data = await res.json();
-        document.getElementById(loaderId)?.remove();
-
-        const rawReply = data.choices?.[0]?.message?.content || 'Maaf, tidak ada respons.';
-        const jsonMatch = rawReply.match(/\{"record":\s*\{[\s\S]*?\}\}/);
-        let cleanReply = rawReply;
-
-        if (jsonMatch) {
-          try {
-            const parsedAction = JSON.parse(jsonMatch[0]);
-            if (parsedAction.record && parsedAction.record.nominal) {
-              parsedAction.record.date = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-              addTransactionToCloud(parsedAction.record);
-            }
-            cleanReply = rawReply.replace(jsonMatch[0], '').replace(/```json/g, '').replace(/```/g, '').trim();
-          } catch (e) {}
-        }
-        appendChatMessage('assistant', cleanReply);
-      } catch (err) {
-        document.getElementById(loaderId)?.remove();
-        appendChatMessage('assistant', `⚠️ Gagal menghubungi AI: ${err.message}`);
-      }
+    async function deleteTransaction(id) {
+      if (!db || !currentUser) return;
+      await db.collection('users').doc(currentUser.uid).collection('transactions').doc(id).delete();
+      transactions = transactions.filter(t => t.id !== id);
+      renderAll();
     }
 
     function renderAll() {
       renderSummary();
-      renderHistoryTable();
-      renderGoals();
-      if (chartInstance) updateChartData();
+      renderTable();
     }
 
     function renderSummary() {
-      let income = 0;
-      let expense = 0;
-      let needs = 0;
-      let wants = 0;
-
+      let inc = 0, exp = 0;
       transactions.forEach(t => {
-        if (t.type === 'income') income += t.nominal;
-        else {
-          expense += t.nominal;
-          if (['Makanan & Minuman', 'Transportasi', 'Tagihan & Utilitas', 'Keluarga & Transfer', 'Kesehatan'].includes(t.category)) needs += t.nominal;
-          else if (['Belanja Harian', 'Hiburan & Santai', 'Lainnya'].includes(t.category)) wants += t.nominal;
-        }
+        if (t.type === 'income') inc += t.nominal;
+        else exp += t.nominal;
       });
-
-      document.getElementById('stat-income').textContent = `Rp ${income.toLocaleString('id-ID')}`;
-      document.getElementById('stat-expense').textContent = `Rp ${expense.toLocaleString('id-ID')}`;
-
-      const now = new Date();
-      const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const daysLeft = Math.max(1, totalDays - now.getDate() + 1);
-      const remainingBudget = Math.max(0, monthlyBudget - expense);
-      const dailyAllowance = Math.round(remainingBudget / daysLeft);
-
-      document.getElementById('stat-daily').textContent = `Rp ${dailyAllowance.toLocaleString('id-ID')}`;
-
-      const totalOut = expense || 1;
-      const needsPct = Math.min(100, Math.round((needs / totalOut) * 100));
-      const wantsPct = Math.min(100, Math.round((wants / totalOut) * 100));
-      const savingsPct = Math.min(100, Math.round(((income > expense ? (income - expense) : 0) / (income || 1)) * 100));
-
-      document.getElementById('ratio-needs-pct').textContent = needsPct + '%';
-      document.getElementById('ratio-needs-bar').style.width = needsPct + '%';
-      document.getElementById('ratio-wants-pct').textContent = wantsPct + '%';
-      document.getElementById('ratio-wants-bar').style.width = wantsPct + '%';
-      document.getElementById('ratio-savings-pct').textContent = savingsPct + '%';
-      document.getElementById('ratio-savings-bar').style.width = savingsPct + '%';
-
-      let score = 100;
-      if (needsPct > 50) score -= (needsPct - 50);
-      if (wantsPct > 30) score -= (wantsPct - 30) * 1.5;
-      if (savingsPct < 20) score -= (20 - savingsPct);
-      score = Math.max(20, Math.min(100, Math.round(score)));
-
-      document.getElementById('stat-score').textContent = score + '/100';
-      const badge = document.getElementById('health-grade-badge');
-      if (score >= 80) {
-        badge.textContent = 'PRIMA';
-        badge.className = 'text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full font-bold';
-      } else if (score >= 60) {
-        badge.textContent = 'CUKUP';
-        badge.className = 'text-[10px] bg-amber-950 text-amber-400 border border-amber-800 px-2 py-0.5 rounded-full font-bold';
-      } else {
-        badge.textContent = 'EVALUASI';
-        badge.className = 'text-[10px] bg-rose-950 text-rose-400 border border-rose-800 px-2 py-0.5 rounded-full font-bold';
-      }
+      document.getElementById('stat-income').textContent = `Rp ${inc.toLocaleString('id-ID')}`;
+      document.getElementById('stat-expense').textContent = `Rp ${exp.toLocaleString('id-ID')}`;
     }
 
-    function renderHistoryTable() {
+    function renderTable() {
       const tbody = document.getElementById('history-table-body');
       if (transactions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-500">Belum ada data transaksi tersimpan.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-500">Belum ada transaksi tersimpan.</td></tr>';
         return;
       }
 
@@ -886,13 +351,13 @@
         return `
           <tr class="hover:bg-slate-800/40 transition">
             <td class="p-2 text-center text-slate-500">${idx + 1}</td>
-            <td class="p-2 text-slate-400 whitespace-nowrap">${t.date}</td>
+            <td class="p-2 text-slate-400 whitespace-nowrap">${t.date || '-'}</td>
             <td class="p-2 font-bold text-slate-200">${t.description}</td>
             <td class="p-2 text-center">${badge}</td>
             <td class="p-2 text-slate-300">${t.category}</td>
             <td class="p-2 text-right font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}">Rp ${t.nominal.toLocaleString('id-ID')}</td>
             <td class="p-2 text-center">
-              <button onclick="deleteTransactionFromCloud('${t.id}')" class="text-slate-500 hover:text-rose-400 p-1">
+              <button onclick="deleteTransaction('${t.id}')" class="text-slate-500 hover:text-rose-400 p-1">
                 <i class="fas fa-trash-can"></i>
               </button>
             </td>
@@ -901,203 +366,21 @@
       }).join('');
     }
 
-    function renderGoals() {
-      const container = document.getElementById('goals-container');
-      if (goals.length === 0) {
-        container.innerHTML = '<div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center text-slate-500">Belum ada target tabungan dibuat.</div>';
-        return;
-      }
+    function handleUserInput(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
 
-      container.innerHTML = goals.map(g => {
-        const pct = Math.min(100, Math.round((g.current / g.target) * 100));
-        return `
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2">
-            <div class="flex items-center justify-between">
-              <div>
-                <h4 class="font-bold text-xs text-slate-100">${g.name}</h4>
-                <p class="text-[10px] text-slate-400">Target: ${g.deadline}</p>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-mono font-bold text-emerald-400">${pct}%</span>
-                <button onclick="deleteGoalFromCloud('${g.id}')" class="text-slate-600 hover:text-rose-400 p-1"><i class="fas fa-trash"></i></button>
-              </div>
-            </div>
-            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
-              <div class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-            </div>
-            <div class="flex justify-between items-center text-[10px] font-mono text-slate-400">
-              <span>Terkumpul: Rp ${g.current.toLocaleString('id-ID')}</span>
-              <span>Target: Rp ${g.target.toLocaleString('id-ID')}</span>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    async function handleSaveGoal(e) {
-      e.preventDefault();
-      if (!db || !currentUser) return;
-      const g = {
-        name: document.getElementById('goal-name').value,
-        target: parseFloat(document.getElementById('goal-target').value) || 0,
-        current: parseFloat(document.getElementById('goal-current').value) || 0,
-        deadline: document.getElementById('goal-deadline').value
-      };
-      const docRef = await db.collection('users').doc(currentUser.uid).collection('goals').add(g);
-      g.id = docRef.id;
-      goals.push(g);
-      closeModal('goal-modal');
-      renderGoals();
-    }
-
-    async function deleteGoalFromCloud(id) {
-      if (!db || !currentUser) return;
-      await db.collection('users').doc(currentUser.uid).collection('goals').doc(id).delete();
-      goals = goals.filter(g => g.id !== id);
-      renderGoals();
-    }
-
-    function initChart() {
-      if (chartInstance) return;
-      const ctx = document.getElementById('categoryChart').getContext('2d');
-      chartInstance = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: [],
-          datasets: [{
-            data: [],
-            backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f43f5e', '#64748b'],
-            borderWidth: 2,
-            borderColor: '#0f172a'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 9 }, boxWidth: 10 } } }
-        }
-      });
-      updateChartData();
-    }
-
-    function updateChartData() {
-      if (!chartInstance) return;
-      const catMap = {};
-      transactions.filter(t => t.type === 'expense').forEach(t => {
-        catMap[t.category] = (catMap[t.category] || 0) + t.nominal;
-      });
-
-      const labels = Object.keys(catMap);
-      const data = Object.values(catMap);
-      const emptyMsg = document.getElementById('chart-empty-msg');
-      const canvasEl = document.getElementById('categoryChart');
-
-      if (data.length === 0) {
-        emptyMsg.classList.remove('hidden');
-        canvasEl.classList.add('hidden');
+      // Sederhana: deteksi angka
+      const numMatch = text.match(/\d+/);
+      if (numMatch) {
+        const nominal = parseInt(numMatch[0]);
+        addTransaction({ description: text, nominal: nominal, type: 'expense', category: 'Umum' });
+        input.value = '';
       } else {
-        emptyMsg.classList.add('hidden');
-        canvasEl.classList.remove('hidden');
-        chartInstance.data.labels = labels;
-        chartInstance.data.datasets[0].data = data;
-        chartInstance.update();
+        alert("Sebutkan nominal transaksi dalam angka!");
       }
-    }
-
-    async function requestAiAudit() {
-      const apiKey = localStorage.getItem(API_KEY_STORAGE);
-      if (!apiKey) {
-        alert('Masukkan OpenRouter API Key terlebih dahulu.');
-        openApiKeyModal();
-        return;
-      }
-      if (transactions.length === 0) return alert('Belum ada data transaksi.');
-
-      const box = document.getElementById('ai-insight-box');
-      box.textContent = '🧠 Sedang menganalisis rasio 50/30/20 dan kebiasaan belanja Anda...';
-
-      const expList = transactions.filter(t => t.type === 'expense');
-      const incList = transactions.filter(t => t.type === 'income');
-      const totalExp = expList.reduce((s, t) => s + t.nominal, 0);
-      const totalInc = incList.reduce((s, t) => s + t.nominal, 0);
-
-      const catTotals = {};
-      expList.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + t.nominal; });
-
-      try {
-        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey.trim()}`,
-            'HTTP-Referer': window.location.origin,
-            'X-Title': 'FinAI Manager'
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.0-flash-001',
-            messages: [
-              { role: 'system', content: 'Anda konsultan keuangan profesional. Buat ulasan ringkas dan padat dalam Bahasa Indonesia.' },
-              { role: 'user', content: `Evaluasi kondisi keuangan saya: Total Masuk Rp ${totalInc.toLocaleString('id-ID')}, Total Keluar Rp ${totalExp.toLocaleString('id-ID')}, Breakdown: ${JSON.stringify(catTotals)}. Berikan ringkasan, evaluasi rasio 50/30/20, dan 2 tips penghematan mingguan.` }
-            ]
-          })
-        });
-        const data = await res.json();
-        box.textContent = data.choices?.[0]?.message?.content || 'Gagal memuat evaluasi.';
-      } catch (err) {
-        box.textContent = '⚠️ Gagal menghubungi AI: ' + err.message;
-      }
-    }
-
-    function exportToCSV() {
-      if (transactions.length === 0) return alert('Tidak ada data transaksi!');
-      let csv = 'No,Tanggal,Deskripsi,Tipe,Kategori,Nominal\n';
-      transactions.forEach((t, i) => {
-        csv += `"${i+1}","${t.date}","${t.description}","${t.type}","${t.category}","${t.nominal}"\n`;
-      });
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `laporan_keuangan_${Date.now()}.csv`;
-      a.click();
-    }
-
-    async function clearAllData() {
-      if (!confirm('Hapus seluruh catatan transaksi dari akun cloud Anda?')) return;
-      if (!db || !currentUser) return;
-      const snap = await db.collection('users').doc(currentUser.uid).collection('transactions').get();
-      const batch = db.batch();
-      snap.docs.forEach(doc => batch.delete(doc.ref));
-      await batch.commit();
-      transactions = [];
-      renderAll();
-    }
-
-    function appendChatMessage(role, text, id = null) {
-      const box = document.getElementById('chat-box');
-      const isUser = role === 'user';
-      const div = document.createElement('div');
-      if (id) div.id = id;
-      div.className = `flex items-start gap-2.5 ${isUser ? 'flex-row-reverse' : ''}`;
-
-      const avatar = isUser
-        ? '<div class="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-xs flex-shrink-0 mt-0.5"><i class="fas fa-user"></i></div>'
-        : '<div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs flex-shrink-0 mt-0.5"><i class="fas fa-robot"></i></div>';
-
-      const bubble = `
-        <div class="${isUser ? 'bg-emerald-600 text-white rounded-tr-none' : 'bg-slate-800/90 border border-slate-700 text-slate-200 rounded-tl-none'} p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] whitespace-pre-wrap shadow-sm">
-          ${text}
-        </div>
-      `;
-
-      div.innerHTML = avatar + bubble;
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
-    }
-
-    function fillInput(text) {
-      document.getElementById('chat-input').value = text;
-      handleUserInput();
     }
 
     function switchTab(tab) {
@@ -1105,85 +388,10 @@
       document.getElementById('tab-charts').classList.toggle('hidden', tab !== 'charts');
       document.getElementById('tab-goals').classList.toggle('hidden', tab !== 'goals');
       document.getElementById('tab-history').classList.toggle('hidden', tab !== 'history');
-
-      ['chat', 'charts', 'goals', 'history'].forEach(t => {
-        const btn = document.getElementById(`tab-btn-${t}`);
-        if (t === tab) {
-          btn.className = 'py-1.5 font-bold rounded-lg text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800 text-center transition';
-        } else {
-          btn.className = 'py-1.5 font-bold rounded-lg text-[11px] text-slate-400 bg-slate-950 border border-slate-800 text-center transition';
-        }
-      });
-
-      if (tab === 'charts') updateChartData();
     }
 
-    function openModal(id) {
-      const el = document.getElementById(id);
-      el.classList.remove('hidden');
-      el.classList.add('flex');
-    }
-    function closeModal(id) {
-      const el = document.getElementById(id);
-      el.classList.add('hidden');
-      el.classList.remove('flex');
-    }
-
-    function openSetupModal() {
-      const cfg = JSON.parse(localStorage.getItem(FB_CONFIG_KEY) || '{}');
-      if (cfg.apiKey) document.getElementById('cfg-apiKey').value = cfg.apiKey;
-      if (cfg.authDomain) document.getElementById('cfg-authDomain').value = cfg.authDomain;
-      if (cfg.projectId) document.getElementById('cfg-projectId').value = cfg.projectId;
-      if (cfg.storageBucket) document.getElementById('cfg-storageBucket').value = cfg.storageBucket;
-      if (cfg.appId) document.getElementById('cfg-appId').value = cfg.appId;
-      openModal('setup-modal');
-    }
-
-    function saveFirebaseConfig() {
-      const config = {
-        apiKey: document.getElementById('cfg-apiKey').value.trim(),
-        authDomain: document.getElementById('cfg-authDomain').value.trim(),
-        projectId: document.getElementById('cfg-projectId').value.trim(),
-        storageBucket: document.getElementById('cfg-storageBucket').value.trim(),
-        appId: document.getElementById('cfg-appId').value.trim()
-      };
-      if (!config.apiKey || !config.projectId) {
-        return alert('apiKey dan projectId wajib diisi!');
-      }
-      localStorage.setItem(FB_CONFIG_KEY, JSON.stringify(config));
-      closeModal('setup-modal');
-      initFirebaseApp();
-      alert('Konfigurasi Firebase tersimpan. Sekarang klik "Masuk dengan Google".');
-    }
-
-    function openBudgetModal() {
-      document.getElementById('input-monthly-budget').value = monthlyBudget;
-      openModal('budget-modal');
-    }
-    async function saveBudget() {
-      const val = parseFloat(document.getElementById('input-monthly-budget').value);
-      if (val > 0) {
-        monthlyBudget = val;
-        localStorage.setItem(LOCAL_BUDGET_KEY, monthlyBudget.toString());
-        if (db && currentUser) {
-          await db.collection('users').doc(currentUser.uid).collection('settings').doc('budget').set({ amount: monthlyBudget });
-        }
-        renderSummary();
-      }
-      closeModal('budget-modal');
-    }
-
-    function openGoalModal() { openModal('goal-modal'); }
-    function openApiKeyModal() {
-      document.getElementById('input-api-key').value = localStorage.getItem(API_KEY_STORAGE) || '';
-      openModal('api-modal');
-    }
-    function saveApiKey() {
-      const val = document.getElementById('input-api-key').value.trim();
-      if (val) localStorage.setItem(API_KEY_STORAGE, val);
-      else localStorage.removeItem(API_KEY_STORAGE);
-      closeModal('api-modal');
-    }
+    function openApiKeyModal() { document.getElementById('api-modal').classList.remove('hidden'); document.getElementById('api-modal').classList.add('flex'); }
+    function saveApiKey() { localStorage.setItem('finai_openrouter_key', document.getElementById('input-api-key').value); document.getElementById('api-modal').classList.add('hidden'); }
   </script>
 </body>
 </html>
