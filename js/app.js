@@ -4,6 +4,13 @@ window.chartInstance = null;
 window.recognition = null;
 window.currentPeriod = 'all';
 
+// Registrasi PWA Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => console.log('SW Registration failed: ', err));
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initSpeechRecognition();
 });
@@ -117,7 +124,7 @@ function parseNaturalLanguage(rawText) {
   return { description: desc.charAt(0).toUpperCase() + desc.slice(1), nominal, type, category };
 }
 
-// 4. Rekam Transaksi dengan Timestamp Presisi
+// 4. Rekam Transaksi
 function recordTransaction(item) {
   const now = Date.now();
   const trx = { 
@@ -221,12 +228,8 @@ async function callOpenRouter(messages) {
           'HTTP-Referer': window.location.href,
           'X-Title': 'FinAI Assistant'
         },
-        body: JSON.stringify({
-          model: model,
-          messages: messages
-        })
+        body: JSON.stringify({ model: model, messages: messages })
       });
-
       const data = await res.json();
       if (data.choices && data.choices[0]) {
         return data.choices[0].message.content;
@@ -252,7 +255,7 @@ async function askAiConversation(promptText) {
   }
 }
 
-// 8. Evaluasi AI Advisor (Menyesuaikan dengan Filter Periode)
+// 8. Evaluasi AI Advisor
 async function requestAiAudit() {
   const currentList = getFilteredTransactions();
   if (currentList.length === 0) return alert('Belum ada transaksi pada periode ini untuk dianalisis.');
@@ -284,7 +287,7 @@ async function requestAiAudit() {
   }
 }
 
-// 9. Render Metrik Berdasarkan Periode Aktif
+// 9. Render Metrik Saldo
 function renderSummary() {
   const currentList = getFilteredTransactions();
   let inc = 0, exp = 0;
@@ -299,14 +302,34 @@ function renderSummary() {
   document.getElementById('stat-expense').textContent = `Rp ${exp.toLocaleString('id-ID')}`;
 }
 
-// 10. Render Tabel Riwayat Berdasarkan Periode Aktif
+// 10. Render Tabel Riwayat dengan Pencarian & Filter Kategori
 function renderHistoryTable() {
   const tb = document.getElementById('history-table-body');
   if (!tb) return;
-  const currentList = getFilteredTransactions();
+  
+  let currentList = getFilteredTransactions();
+
+  // Ambil keyword pencarian
+  const searchInput = document.getElementById('history-search-input');
+  const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+  // Ambil filter kategori
+  const catFilter = document.getElementById('history-category-filter');
+  const selectedCat = catFilter ? catFilter.value : 'ALL';
+
+  if (keyword) {
+    currentList = currentList.filter(t => 
+      t.description.toLowerCase().includes(keyword) || 
+      t.category.toLowerCase().includes(keyword)
+    );
+  }
+
+  if (selectedCat !== 'ALL') {
+    currentList = currentList.filter(t => t.category === selectedCat);
+  }
 
   if (currentList.length === 0) { 
-    tb.innerHTML = '<tr><td class="p-6 text-center text-slate-500">Belum ada transaksi pada periode ini</td></tr>'; 
+    tb.innerHTML = '<tr><td class="p-6 text-center text-slate-500">Tidak ada transaksi yang cocok</td></tr>'; 
     return; 
   }
 
@@ -352,7 +375,7 @@ function switchTab(selectedTab) {
   }
 }
 
-// 12. Diagram Lingkaran Berdasarkan Periode Aktif
+// 12. Diagram Lingkaran
 function initChart() {
   const ctx = document.getElementById('categoryChart');
   if (!ctx) return;
@@ -419,7 +442,7 @@ async function handleReceiptUpload(event) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'Authorization': `Bearer ${OPENROUTER_API_KEY.trim()}`,
           'HTTP-Referer': window.location.href,
           'X-Title': 'FinAI Assistant'
         },
@@ -466,7 +489,7 @@ async function handleReceiptUpload(event) {
   };
 }
 
-// 14. Ekspor CSV (Sesuai Periode yang Sedang Dipilih)
+// 14. Ekspor CSV
 function exportToCSV() {
   const currentList = getFilteredTransactions();
   if (!currentList.length) return alert('Tidak ada transaksi pada periode ini untuk diunduh!');
@@ -480,4 +503,117 @@ function exportToCSV() {
   a.href = window.URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
   a.download = `laporan_keuangan_${window.currentPeriod}_${Date.now()}.csv`;
   a.click();
+}
+
+// 15. Ekspor Rekap Visual PDF 1 Halaman
+function exportVisualPDF() {
+  const currentList = getFilteredTransactions();
+  if (!currentList.length) return alert('Tidak ada data transaksi untuk diekspor ke PDF!');
+
+  let inc = 0, exp = 0;
+  const catTotals = {};
+  currentList.forEach(t => {
+    if (t.type === 'income') inc += t.nominal;
+    else {
+      exp += t.nominal;
+      catTotals[t.category] = (catTotals[t.category] || 0) + t.nominal;
+    }
+  });
+  const balance = inc - exp;
+
+  const periodLabels = {
+    today: 'Hari Ini',
+    week: 'Minggu Ini',
+    month: 'Bulan Ini',
+    all: 'Semua Waktu'
+  };
+
+  const userName = document.getElementById('user-display-name')?.textContent || 'Pengguna';
+  const currentDate = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  let topExpensesHtml = '';
+  const sortedExp = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+  sortedExp.forEach(([cat, nom]) => {
+    const pct = exp > 0 ? Math.round((nom / exp) * 100) : 0;
+    topExpensesHtml += `
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:11px;">
+        <span><b>${cat}</b> (${pct}%)</span>
+        <span>Rp ${nom.toLocaleString('id-ID')}</span>
+      </div>
+    `;
+  });
+
+  const tempContainer = document.createElement('div');
+  tempContainer.style.padding = '24px';
+  tempContainer.style.background = '#ffffff';
+  tempContainer.style.color = '#0f172a';
+  tempContainer.style.fontFamily = 'Arial, sans-serif';
+
+  tempContainer.innerHTML = `
+    <div style="border-bottom: 2px solid #10b981; padding-bottom: 12px; margin-bottom: 16px; display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <h1 style="font-size: 20px; margin: 0; color: #047857; font-weight: bold;">FinAI - Rekap Keuangan</h1>
+        <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">Laporan Transaksi Periode: <b>${periodLabels[window.currentPeriod]}</b></p>
+      </div>
+      <div style="text-align: right; font-size: 10px; color: #64748b;">
+        <div>Nama: <b>${userName}</b></div>
+        <div>Dicetak: ${currentDate}</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 8px;">
+        <span style="font-size: 9px; color: #166534; text-transform: uppercase;">Saldo Bersih</span>
+        <div style="font-size: 13px; font-weight: bold; color: #15803d; margin-top: 3px;">Rp ${balance.toLocaleString('id-ID')}</div>
+      </div>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px;">
+        <span style="font-size: 9px; color: #475569; text-transform: uppercase;">Total Pemasukan</span>
+        <div style="font-size: 13px; font-weight: bold; color: #0f172a; margin-top: 3px;">Rp ${inc.toLocaleString('id-ID')}</div>
+      </div>
+      <div style="background: #fff1f2; border: 1px solid #fecdd3; padding: 10px; border-radius: 8px;">
+        <span style="font-size: 9px; color: #9f1239; text-transform: uppercase;">Total Pengeluaran</span>
+        <div style="font-size: 13px; font-weight: bold; color: #be123c; margin-top: 3px;">Rp ${exp.toLocaleString('id-ID')}</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <h3 style="font-size: 12px; margin: 0 0 8px 0; color: #334155; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Rincian Pengeluaran per Kategori</h3>
+      ${topExpensesHtml || '<p style="font-size:11px; color:#94a3b8;">Tidak ada pengeluaran.</p>'}
+    </div>
+
+    <div>
+      <h3 style="font-size: 12px; margin: 0 0 8px 0; color: #334155; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Daftar Transaksi (${currentList.length} Entri)</h3>
+      <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+        <thead>
+          <tr style="background: #f1f5f9; text-align: left;">
+            <th style="padding: 6px; border: 1px solid #cbd5e1;">Tanggal</th>
+            <th style="padding: 6px; border: 1px solid #cbd5e1;">Deskripsi</th>
+            <th style="padding: 6px; border: 1px solid #cbd5e1;">Kategori</th>
+            <th style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">Nominal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${currentList.slice(0, 15).map(t => `
+            <tr>
+              <td style="padding: 5px 6px; border: 1px solid #e2e8f0;">${t.date}</td>
+              <td style="padding: 5px 6px; border: 1px solid #e2e8f0;">${t.description}</td>
+              <td style="padding: 5px 6px; border: 1px solid #e2e8f0;">${t.category}</td>
+              <td style="padding: 5px 6px; border: 1px solid #e2e8f0; text-align: right; color: ${t.type==='income'?'#16a34a':'#dc2626'}; font-weight: bold;">Rp ${t.nominal.toLocaleString('id-ID')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      ${currentList.length > 15 ? `<p style="font-size:9px; color:#94a3b8; margin-top:4px;">*Menampilkan 15 transaksi teratas.</p>` : ''}
+    </div>
+  `;
+
+  const opt = {
+    margin: 8,
+    filename: `Rekap_FinAI_${window.currentPeriod}_${Date.now()}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  html2pdf().set(opt).from(tempContainer).save();
 }

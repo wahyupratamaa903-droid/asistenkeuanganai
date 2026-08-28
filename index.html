@@ -4,8 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FinAI - Asisten Keuangan Pintar</title>
+  
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#090d16">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FinAI">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/10149/10149458.png">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -37,7 +47,7 @@
           <i class="fas fa-circle-notch fa-spin text-2xl text-emerald-400 mb-2"></i>
           <span class="text-xs text-slate-300 font-bold">Menghubungkan Akun...</span>
         </div>
-        <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-3 transition">
+        <button onclick="loginWithGoogle()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-3 transition shadow-lg text-xs">
           <svg class="w-4 h-4" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -179,16 +189,46 @@
       </div>
     </section>
 
-    <!-- TAB 3: RIWAYAT -->
-    <section id="tab-history" class="hidden flex-1 w-full max-w-4xl mx-auto space-y-3">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl flex items-center justify-between">
-        <h2 class="font-bold text-xs text-slate-100">Riwayat Transaksi</h2>
-        <button onclick="exportToCSV()" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold px-3 py-1.5 rounded-lg text-[10px] transition">
-          <i class="fas fa-file-csv mr-1"></i> Unduh CSV
-        </button>
+    <!-- TAB 3: RIWAYAT (PENCARIAN, FILTER KATEGORI & EKSPOR PDF) -->
+    <section id="tab-history" class="hidden flex-1 w-full max-w-4xl mx-auto space-y-2.5">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl space-y-2">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
+            <i class="fas fa-receipt text-emerald-400"></i> Riwayat Transaksi
+          </h2>
+          <div class="flex items-center gap-1.5">
+            <button onclick="exportVisualPDF()" class="bg-purple-950/80 hover:bg-purple-900 text-purple-300 border border-purple-800 font-bold px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1 transition">
+              <i class="fas fa-file-pdf text-rose-400"></i> Rekap PDF
+            </button>
+            <button onclick="exportToCSV()" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 font-bold px-2.5 py-1.5 rounded-lg text-[10px] flex items-center gap-1 transition">
+              <i class="fas fa-file-csv"></i> CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- SEARCH BAR & KATEGORI FILTER -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-800">
+          <div class="relative">
+            <i class="fas fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-[10px]"></i>
+            <input type="text" id="history-search-input" oninput="renderHistoryTable()" placeholder="Cari nama transaksi (cth: bensin)..." class="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl pl-8 pr-3 py-1.5 text-[11px] text-slate-100 focus:outline-none">
+          </div>
+          <select id="history-category-filter" onchange="renderHistoryTable()" class="bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-2.5 py-1.5 text-[11px] text-slate-300 focus:outline-none">
+            <option value="ALL">Semua Kategori</option>
+            <option value="Makanan & Minuman">Makanan & Minuman</option>
+            <option value="Transportasi">Transportasi</option>
+            <option value="Tagihan & Utilitas">Tagihan & Utilitas</option>
+            <option value="Belanja Harian">Belanja Harian</option>
+            <option value="Hiburan & Santai">Hiburan & Santai</option>
+            <option value="Kesehatan">Kesehatan</option>
+            <option value="Keluarga & Transfer">Keluarga & Transfer</option>
+            <option value="Gaji & Pendapatan">Gaji & Pendapatan</option>
+            <option value="Lainnya">Lainnya</option>
+          </select>
+        </div>
       </div>
+
       <div class="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-        <div class="overflow-x-auto max-h-[55vh]">
+        <div class="overflow-x-auto max-h-[50vh]">
           <table class="sheet-table w-full text-left font-mono text-[11px]">
             <tbody id="history-table-body" class="divide-y divide-slate-800"></tbody>
           </table>
