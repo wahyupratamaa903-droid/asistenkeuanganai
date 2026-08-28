@@ -8,10 +8,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
   
-  <!-- Firebase SDK untuk Google Login & Cloud Sync -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <!-- SDK Google Identity Services Resmi -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
     body { background: #090d16; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
@@ -25,11 +23,11 @@
 </head>
 <body class="text-slate-200 text-xs min-h-screen flex flex-col justify-between">
 
-  <!-- ================= LAYAR 1: LOGIN GOOGLE (CLOUD SYNC) ================= -->
+  <!-- ================= LAYAR 1: LOGIN GOOGLE (ACCOUNT CHOOSER) ================= -->
   <div id="login-screen" class="min-h-screen flex flex-col items-center justify-center p-4">
     <div class="w-full max-w-sm flex flex-col items-center text-center space-y-6">
       
-      <!-- App Icon & Title -->
+      <!-- App Brand & Logo -->
       <div class="space-y-3">
         <div class="w-20 h-20 rounded-3xl bg-emerald-950/70 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-3xl mx-auto shadow-2xl">
           <i class="fas fa-wallet"></i>
@@ -40,7 +38,7 @@
         </div>
       </div>
 
-      <!-- Login Card -->
+      <!-- Card Login -->
       <div class="w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 backdrop-blur">
         <div class="space-y-1.5">
           <h2 class="text-sm font-bold text-slate-100">Selamat Datang</h2>
@@ -49,8 +47,13 @@
           </p>
         </div>
 
-        <!-- Google Login Button -->
-        <button onclick="handleGoogleLogin()" id="btn-google-login" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-3 transition shadow-lg text-xs">
+        <!-- Google Native Sign-In Button Container -->
+        <div id="g_id_signin_wrapper" class="flex flex-col items-center justify-center min-h-[46px] w-full">
+          <div id="google-native-btn" class="w-full flex justify-center"></div>
+        </div>
+
+        <!-- Fallback Custom Button if GIS is loading -->
+        <button onclick="triggerGoogleLoginPrompt()" id="btn-custom-google" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3 px-4 rounded-2xl flex items-center justify-center gap-3 transition shadow-lg text-xs">
           <svg class="w-4 h-4" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -60,9 +63,8 @@
           <span>Masuk dengan Google</span>
         </button>
 
-        <!-- Continue as Guest Option -->
         <button onclick="continueAsGuest()" class="text-[10px] text-slate-500 hover:text-slate-300 underline block mx-auto transition">
-          Gunakan Mode Offline (Tersimpan di HP Ini)
+          Gunakan Mode Offline (Lokal HP)
         </button>
       </div>
 
@@ -76,28 +78,28 @@
   <!-- ================= LAYAR 2: DASHBOARD UTAMA FINAI ================= -->
   <div id="main-app" class="hidden min-h-screen flex flex-col justify-between p-2 md:p-4">
     
-    <!-- Top Header & Cloud Status -->
+    <!-- Header Utama & Profil User -->
     <header class="bg-slate-900 border border-slate-800 rounded-2xl p-3 mb-3 shadow-xl space-y-2.5">
       <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
         <div class="flex items-center gap-2.5">
-          <div id="user-avatar-container" class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm shadow-inner overflow-hidden">
-            <i class="fas fa-wallet" id="default-avatar-icon"></i>
+          <div id="user-avatar-container" class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm shadow-inner overflow-hidden border border-emerald-500/30">
+            <i class="fas fa-user" id="default-avatar-icon"></i>
             <img id="user-avatar-img" class="w-full h-full object-cover hidden" alt="Avatar">
           </div>
           <div>
             <h1 class="font-black text-xs sm:text-sm text-slate-100 uppercase tracking-wide flex items-center gap-1.5">
-              <span>FinAI Assistant</span>
-              <span id="cloud-badge" class="text-[8px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.2 rounded">CLOUD SYNC</span>
+              <span id="user-name-display">FinAI Assistant</span>
+              <span class="text-[8px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.2 rounded font-mono">CLOUD</span>
             </h1>
-            <p id="user-name-display" class="text-[10px] text-slate-400">Pencatatan Suara, Scan Struk & Analisis</p>
+            <p id="user-email-display" class="text-[10px] text-slate-400">Pencatatan Suara, Scan Struk & Analisis</p>
           </div>
         </div>
 
         <div class="flex items-center gap-1.5">
-          <button onclick="openBudgetModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition">
+          <button onclick="openBudgetModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition" title="Set Budget">
             <i class="fas fa-sliders text-emerald-400"></i> Budget
           </button>
-          <button onclick="openApiKeyModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition">
+          <button onclick="openApiKeyModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition" title="Set API">
             <i class="fas fa-key text-amber-400"></i> API
           </button>
           <button onclick="handleLogout()" class="text-[10px] bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/80 px-2 py-1 rounded-lg transition" title="Logout">
@@ -151,17 +153,17 @@
             <i class="fas fa-robot"></i>
           </div>
           <div class="bg-slate-800/90 border border-slate-700 p-3 rounded-2xl rounded-tl-none text-slate-200 text-xs leading-relaxed max-w-[85%] shadow-sm">
-            Halo! Semua transaksi Anda otomatis tersinkron ke cloud. Pilih metode pencatatan yang diinginkan:
+            Halo! Akun Google Anda tersambung. Catat transaksi keuangan dengan mudah:
             <div class="mt-2 space-y-1 font-mono text-[11px] text-emerald-300">
               <div>• <b>Suara:</b> Klik tombol mic (cth: <i>"setor orang tua satu juta"</i>).</div>
-              <div>• <b>Scan Struk:</b> Klik kamera untuk memindai struk fisik kasir.</div>
+              <div>• <b>Scan Struk:</b> Klik kamera untuk membaca total struk belanja.</div>
               <div>• <b>Ketik Bebas:</b> Cth: <i>"bensin 30rb"</i>, <i>"gaji 5jt"</i>, <i>"kopi 25k"</i>.</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Input Controls -->
+      <!-- Controls & Input Bar -->
       <div class="mt-3 space-y-2">
         <div class="flex gap-1.5 overflow-x-auto pb-1 text-[10px] no-scrollbar">
           <button onclick="fillInput('beli kopi 25rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
@@ -220,7 +222,7 @@
 
           <div>
             <div class="flex justify-between text-[10px] mb-1">
-              <span class="text-slate-400">Keinginan & Lifestyle (Maks 30%)</span>
+              <span class="text-slate-400">Keinginan & Gaya Hidup (Maks 30%)</span>
               <span id="ratio-wants-pct" class="font-bold text-amber-400">0%</span>
             </div>
             <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
@@ -290,7 +292,7 @@
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl flex items-center justify-between gap-2">
         <div>
           <h2 class="font-bold text-xs text-slate-100">Daftar Transaksi Lengkap</h2>
-          <p class="text-[10px] text-slate-400">Sinkronisasi Cloud & Penyimpanan Lokal</p>
+          <p class="text-[10px] text-slate-400">Sinkronisasi Cloud & Penyimpanan Aman</p>
         </div>
         <div class="flex items-center gap-2">
           <button onclick="exportToCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition text-[11px]">
@@ -394,77 +396,115 @@
   </div>
 
   <script>
-    // Storage Keys
     const STORAGE_KEY = 'finai_transactions_v1';
     const BUDGET_KEY = 'finai_monthly_budget_v1';
     const GOALS_KEY = 'finai_goals_v1';
     const API_KEY_STORAGE = 'finai_openrouter_key';
     const USER_KEY = 'finai_auth_user';
 
-    let transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    let monthlyBudget = parseFloat(localStorage.getItem(BUDGET_KEY) || '2000000');
-    let goals = JSON.parse(localStorage.getItem(GOALS_KEY) || '[]');
+    // Google Client ID Public untuk GIS Auth
+    const GOOGLE_CLIENT_ID = "1028795551221-q70qg5mksj5s7n24k6m58r8r3v9p4k7r.apps.googleusercontent.com";
+
+    let transactions = [];
+    let monthlyBudget = 2000000;
+    let goals = [];
     let currentUser = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
 
     let chartInstance = null;
     let recognition = null;
     let isRecording = false;
 
-    // Inisialisasi Aplikasi & Cek Status Login
-    document.addEventListener('DOMContentLoaded', () => {
+    // Inisialisasi Google Identity Services & Auth
+    window.onload = function() {
+      initGoogleGIS();
       checkAuthState();
       initSpeechRecognition();
-    });
+    };
 
-    function checkAuthState() {
-      if (currentUser) {
-        document.getElementById('login-screen').classList.add('hidden');
-        document.getElementById('main-app').classList.remove('hidden');
-        
-        document.getElementById('user-name-display').textContent = currentUser.name || currentUser.email || 'Pengguna FinAI';
-        if (currentUser.photo) {
-          document.getElementById('user-avatar-img').src = currentUser.photo;
-          document.getElementById('user-avatar-img').classList.remove('hidden');
-          document.getElementById('default-avatar-icon').classList.add('hidden');
-        }
-        renderAll();
-        initChart();
-      } else {
-        document.getElementById('login-screen').classList.remove('hidden');
-        document.getElementById('main-app').classList.add('hidden');
+    function initGoogleGIS() {
+      if (window.google && google.accounts && google.accounts.id) {
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true
+        });
+
+        // Render tombol native Google
+        google.accounts.id.renderButton(
+          document.getElementById('google-native-btn'),
+          { theme: "filled_blue", size: "large", shape: "pill", width: 280, text: "continue_with" }
+        );
+
+        // Hide custom button if native renders
+        const customBtn = document.getElementById('btn-custom-google');
+        if (customBtn) customBtn.classList.add('hidden');
       }
     }
 
-    // Google Sign-In Simulation & Cloud Sync Storage
-    function handleGoogleLogin() {
-      const email = prompt('Masukkan Email Google Anda untuk sinkronisasi cloud:');
-      if (email && email.includes('@')) {
-        const username = email.split('@')[0];
-        currentUser = {
-          uid: 'usr_' + btoa(email).substring(0, 12),
-          email: email,
-          name: username.charAt(0).toUpperCase() + username.slice(1),
-          photo: `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`
-        };
+    function triggerGoogleLoginPrompt() {
+      if (window.google && google.accounts && google.accounts.id) {
+        google.accounts.id.prompt();
+      } else {
+        // Direct OAuth Fallback
+        const currentUrl = window.location.href.split('#')[0];
+        const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(currentUrl)}&response_type=token&scope=email%20profile`;
+        window.location.href = oauthUrl;
+      }
+    }
 
-        localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
-        
-        // Cek apakah ada data cloud untuk user ini di local backup
-        const cloudDataKey = `finai_cloud_${currentUser.uid}`;
-        const cloudData = localStorage.getItem(cloudDataKey);
-        if (cloudData) {
-          const parsed = JSON.parse(cloudData);
-          transactions = parsed.transactions || [];
-          monthlyBudget = parsed.monthlyBudget || 2000000;
-          goals = parsed.goals || [];
-          saveToLocal();
-        } else {
-          syncToCloud();
+    // Decode JWT Credential dari Google
+    function parseJwt(token) {
+      try {
+        var base64Url = token.split('.')[1];
+        var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        var jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function handleGoogleCredentialResponse(response) {
+      if (response.credential) {
+        const payload = parseJwt(response.credential);
+        if (payload) {
+          currentUser = {
+            uid: payload.sub,
+            email: payload.email,
+            name: payload.name,
+            photo: payload.picture
+          };
+          localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+          loadUserData();
+          checkAuthState();
         }
+      }
+    }
 
-        checkAuthState();
-      } else if (email !== null) {
-        alert('Format email tidak valid. Masukkan alamat email Google Anda.');
+    // Cek jika URL mengandung OAuth Access Token dari Redirect
+    if (window.location.hash.includes('access_token=')) {
+      const params = new URLSearchParams(window.location.hash.substring(1));
+      const token = params.get('access_token');
+      if (token) {
+        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        .then(res => res.json())
+        .then(user => {
+          currentUser = {
+            uid: user.sub,
+            email: user.email,
+            name: user.name,
+            photo: user.picture
+          };
+          localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+          window.location.hash = '';
+          loadUserData();
+          checkAuthState();
+        });
       }
     }
 
@@ -476,34 +516,71 @@
         photo: ''
       };
       localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+      loadUserData();
       checkAuthState();
     }
 
-    function handleLogout() {
-      if (confirm('Keluar dari akun FinAI? Data cloud Anda tetap tersimpan.')) {
-        localStorage.removeItem(USER_KEY);
-        currentUser = null;
-        checkAuthState();
+    function checkAuthState() {
+      if (currentUser) {
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('main-app').classList.remove('hidden');
+        
+        document.getElementById('user-name-display').textContent = currentUser.name || 'Pengguna FinAI';
+        document.getElementById('user-email-display').textContent = currentUser.email || '';
+        
+        if (currentUser.photo) {
+          document.getElementById('user-avatar-img').src = currentUser.photo;
+          document.getElementById('user-avatar-img').classList.remove('hidden');
+          document.getElementById('default-avatar-icon').classList.add('hidden');
+        }
+
+        loadUserData();
+        renderAll();
+        initChart();
+      } else {
+        document.getElementById('login-screen').classList.remove('hidden');
+        document.getElementById('main-app').classList.add('hidden');
       }
     }
 
-    function syncToCloud() {
-      if (!currentUser || currentUser.uid === 'guest_local') return;
-      const cloudDataKey = `finai_cloud_${currentUser.uid}`;
-      const payload = {
-        transactions,
-        monthlyBudget,
-        goals,
-        updatedAt: Date.now()
-      };
-      localStorage.setItem(cloudDataKey, JSON.stringify(payload));
+    function loadUserData() {
+      if (!currentUser) return;
+      const cloudKey = `finai_cloud_${currentUser.uid}`;
+      const saved = localStorage.getItem(cloudKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        transactions = parsed.transactions || [];
+        monthlyBudget = parsed.monthlyBudget || 2000000;
+        goals = parsed.goals || [];
+      } else {
+        // Migrasikan transaksi lokal lama ke akun Google pertama kali login
+        transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        monthlyBudget = parseFloat(localStorage.getItem(BUDGET_KEY) || '2000000');
+        goals = JSON.parse(localStorage.getItem(GOALS_KEY) || '[]');
+        saveUserData();
+      }
     }
 
-    function saveToLocal() {
+    function saveUserData() {
+      if (!currentUser) return;
+      const cloudKey = `finai_cloud_${currentUser.uid}`;
+      const data = { transactions, monthlyBudget, goals, updatedAt: Date.now() };
+      localStorage.setItem(cloudKey, JSON.stringify(data));
+      // Backup ke key lokal
       localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
       localStorage.setItem(BUDGET_KEY, monthlyBudget.toString());
       localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
-      syncToCloud();
+    }
+
+    function handleLogout() {
+      if (confirm('Keluar dari akun FinAI? Seluruh catatan Anda tetap aman tersimpan.')) {
+        localStorage.removeItem(USER_KEY);
+        currentUser = null;
+        if (window.google && google.accounts && google.accounts.id) {
+          google.accounts.id.disableAutoSelect();
+        }
+        checkAuthState();
+      }
     }
 
     function renderAll() {
@@ -513,7 +590,7 @@
       if (chartInstance) updateChartData();
     }
 
-    // 1. Indonesian Word Converter
+    // Indonesian Word Number Normalizer
     function normalizeIndonesianWords(text) {
       let s = text.toLowerCase()
         .replace(/setengah juta/g, '500000')
@@ -540,7 +617,7 @@
       return s;
     }
 
-    // 2. Speech Recognition (Web Speech API)
+    // Voice Recognition
     function initSpeechRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
@@ -580,7 +657,7 @@
       }
     }
 
-    // 3. Compress Image Helper
+    // Image Compressor
     function compressImageFile(file, maxWidth = 800, quality = 0.75) {
       return new Promise((resolve) => {
         const reader = new FileReader();
@@ -608,7 +685,7 @@
       });
     }
 
-    // 4. Robust Dual-Layer OCR Receipt Scanner
+    // OCR Receipt Scanner Cerdas
     async function handleReceiptUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -621,15 +698,15 @@
       }
 
       const loaderId = 'loader-receipt-' + Date.now();
-      appendChatMessage('assistant', '📷 Sedang membaca dan memindai struk belanja dengan AI Vision...', loaderId);
+      appendChatMessage('assistant', '📷 Sedang membaca total belanja dari foto struk...', loaderId);
 
       try {
         const base64Compressed = await compressImageFile(file);
 
-        const promptText = `Anda adalah sistem OCR kasir pintar. Baca foto struk ini dan temukan TOTAL AKHIR yang harus dibayar (Grand Total) dan NAMA TOKO/ITEM utama.
-KEMBALIKAN HANYA FORMAT JSON SEPERTI INI:
-{"description": "Nama Toko / Belanjaan", "nominal": 45000, "category": "Belanja Harian / Makanan & Minuman / Transportasi"}
-Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko]`;
+        const promptText = `Baca struk belanja ini secara teliti. Temukan nama toko/minimarket dan TOTAL TAGIHAN AKHIR (Grand Total / Total Bayar).
+Kembalikan format JSON:
+{"description": "Nama Toko / Barang", "nominal": 25000, "category": "Belanja Harian / Makanan & Minuman / Transportasi"}
+Jika tidak yakin dengan nama toko, tulis "Struk Belanja". Angka nominal wajib berupa integer bulat tanpa titik/koma.`;
 
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -656,14 +733,9 @@ Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko
         const data = await res.json();
         document.getElementById(loaderId)?.remove();
 
-        if (data.error) {
-          appendChatMessage('assistant', `⚠️ Error OpenRouter: ${data.error.message || JSON.stringify(data.error)}`);
-          return;
-        }
-
         const rawContent = data.choices?.[0]?.message?.content || '';
 
-        // LAPIS 1: Coba Parse JSON
+        // Ekstraksi JSON Lapis 1
         let detected = null;
         const jsonMatch = rawContent.match(/\{[\s\S]*?\}/);
         if (jsonMatch) {
@@ -679,11 +751,10 @@ Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko
           } catch (e) {}
         }
 
-        // LAPIS 2: Ekstraksi Cerdas Regex jika JSON tidak lengkap
+        // Ekstraksi Regex Lapis 2
         if (!detected) {
           const numbers = rawContent.replace(/\./g, '').match(/\d{4,9}/g);
           if (numbers && numbers.length > 0) {
-            // Ambil angka terbesar yang masuk akal sebagai total belanja
             const highestNum = Math.max(...numbers.map(n => parseInt(n)));
             let store = 'Struk Belanja';
             if (/indomaret/i.test(rawContent)) store = 'Indomaret';
@@ -709,7 +780,7 @@ Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko
 
           appendChatMessage('assistant', `🧾 **Struk Berhasil Dicatat!**\n• **Toko/Item:** ${trx.description}\n• **Total:** Rp ${trx.nominal.toLocaleString('id-ID')}\n• **Kategori:** ${trx.category}`);
         } else {
-          appendChatMessage('assistant', `⚠️ Respon AI: "${rawContent.slice(0, 150)}..."\nPastikan foto struk memiliki pencahayaan cukup dan nominal total terlihat jelas.`);
+          appendChatMessage('assistant', '⚠️ Tidak dapat mendeteksi angka total pada struk. Coba ambil foto dengan jarak lebih dekat dan pencahayaan terang.');
         }
       } catch (err) {
         document.getElementById(loaderId)?.remove();
@@ -719,7 +790,7 @@ Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko
       }
     }
 
-    // 5. Natural Language Processing
+    // Natural Language Engine
     function parseNaturalLanguage(rawText) {
       const normalized = normalizeIndonesianWords(rawText);
       const lower = normalized.toLowerCase().trim();
@@ -777,7 +848,7 @@ Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko
       };
 
       transactions.unshift(trx);
-      saveToLocal();
+      saveUserData();
       renderAll();
       return trx;
     }
@@ -801,11 +872,10 @@ Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko
       }
     }
 
-    // 6. AI Chatbot
     async function askAiConversation(promptText) {
       const apiKey = localStorage.getItem(API_KEY_STORAGE);
       if (!apiKey) {
-        appendChatMessage('assistant', '💡 Transaksi otomatis tercatat jika menyebutkan nominal (misal: "setor orang tua 1 juta" atau "kopi 25rb"). Untuk obrolan AI, masukkan API Key pada tombol API di kanan atas.');
+        appendChatMessage('assistant', '💡 Transaksi otomatis dicatat jika menyebutkan nominal angka/kata (cth: "setor orang tua 1jt"). Untuk obrolan AI, masukkan API Key pada tombol API di kanan atas.');
         return;
       }
 
@@ -829,7 +899,7 @@ Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko
             messages: [
               {
                 role: 'system',
-                content: `Anda adalah FinAI, asisten keuangan pribadi cerdas. Saldo Pemasukan: Rp ${totalInc.toLocaleString('id-ID')}, Pengeluaran: Rp ${totalExp.toLocaleString('id-ID')}. Jika pengguna menyebutkan transaksi, wajib sertakan di akhir: {"record": {"description": "...", "nominal": 10000, "type": "expense|income", "category": "..."}}`
+                content: `Anda adalah FinAI, asisten keuangan pribadi. Saldo Pemasukan: Rp ${totalInc.toLocaleString('id-ID')}, Pengeluaran: Rp ${totalExp.toLocaleString('id-ID')}. Jika pengguna menyebutkan transaksi, wajib sertakan di akhir: {"record": {"description": "...", "nominal": 10000, "type": "expense|income", "category": "..."}}`
               },
               { role: 'user', content: promptText }
             ]
@@ -860,7 +930,6 @@ Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko
       }
     }
 
-    // 7. Metrics & Dashboard Calculations
     function renderSummary() {
       let income = 0;
       let expense = 0;
@@ -923,7 +992,6 @@ Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko
       }
     }
 
-    // 8. Goals & Table Rendering
     function renderGoals() {
       const container = document.getElementById('goals-container');
       if (goals.length === 0) {
@@ -970,14 +1038,14 @@ Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko
         current: parseFloat(document.getElementById('goal-current').value) || 0,
         deadline: document.getElementById('goal-deadline').value
       });
-      saveToLocal();
+      saveUserData();
       closeGoalModal();
       renderGoals();
     }
 
     function deleteGoal(id) {
       goals = goals.filter(g => g.id !== id);
-      saveToLocal();
+      saveUserData();
       renderGoals();
     }
 
@@ -1119,14 +1187,14 @@ Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko
 
     function deleteTransaction(id) {
       transactions = transactions.filter(t => t.id !== id);
-      saveToLocal();
+      saveUserData();
       renderAll();
     }
 
     function clearAllData() {
       if (confirm('Hapus seluruh catatan transaksi?')) {
         transactions = [];
-        saveToLocal();
+        saveUserData();
         renderAll();
       }
     }
@@ -1204,7 +1272,7 @@ Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko
       const val = parseFloat(document.getElementById('input-monthly-budget').value);
       if (val > 0) {
         monthlyBudget = val;
-        saveToLocal();
+        saveUserData();
         renderSummary();
       }
       closeBudgetModal();
