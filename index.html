@@ -19,12 +19,12 @@
 </head>
 <body class="text-slate-200 text-xs min-h-screen flex flex-col justify-between p-2 md:p-4">
 
-  <!-- Top Header & Budget Meter -->
+  <!-- Top Header & Budget Banner -->
   <header class="bg-slate-900 border border-slate-800 rounded-2xl p-3 mb-3 shadow-xl space-y-2.5">
     <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm shadow-inner">
-          <i class="fas fa-shield-halved"></i>
+          <i class="fas fa-wallet"></i>
         </div>
         <div>
           <h1 class="font-black text-xs sm:text-sm text-slate-100 uppercase tracking-wide">FinAI Smart Assistant</h1>
@@ -41,7 +41,7 @@
       </div>
     </div>
 
-    <!-- Live Budget & Daily Allowance Banner -->
+    <!-- Live Metric Cards -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
       <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
         <span class="text-[9px] text-slate-500 block uppercase">Pemasukan</span>
@@ -61,15 +61,6 @@
       </div>
     </div>
 
-    <!-- Anomaly / Micro Spending Warning Banner -->
-    <div id="anomaly-banner" class="hidden bg-amber-950/40 border border-amber-800/80 rounded-xl p-2 text-[10px] text-amber-300 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <i class="fas fa-triangle-exclamation text-amber-400"></i>
-        <span id="anomaly-text">Peringatan micro-spending terdeteksi.</span>
-      </div>
-      <button onclick="document.getElementById('anomaly-banner').classList.add('hidden')" class="text-slate-400 hover:text-slate-200"><i class="fas fa-times"></i></button>
-    </div>
-
     <!-- Navigation Switcher Tabs -->
     <div class="grid grid-cols-4 gap-1 pt-1">
       <button onclick="switchTab('chat')" id="tab-btn-chat" class="py-1.5 font-bold rounded-lg text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 text-center transition">
@@ -87,7 +78,7 @@
     </div>
   </header>
 
-  <!-- TAB 1: Chat, Voice, Scan & Quick Input -->
+  <!-- TAB 1: Chat, Voice, Scan & Direct Input -->
   <section id="tab-chat" class="flex-1 flex flex-col justify-between max-w-2xl w-full mx-auto">
     <div id="chat-box" class="flex-1 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 space-y-3 overflow-y-auto max-h-[55vh] shadow-inner">
       <div class="flex items-start gap-2.5">
@@ -95,11 +86,11 @@
           <i class="fas fa-robot"></i>
         </div>
         <div class="bg-slate-800/90 border border-slate-700 p-3 rounded-2xl rounded-tl-none text-slate-200 text-xs leading-relaxed max-w-[85%] shadow-sm">
-          Halo! Anda bisa mencatat transaksi dengan 3 cara mudah:
+          Halo! Sistem kini mengenali ucapan suara langsung dan foto struk fisik:
           <div class="mt-2 space-y-1 font-mono text-[11px] text-emerald-300">
-            <div>• <b>Suara:</b> Klik tombol mic dan ucapkan pengeluaran Anda.</div>
-            <div>• <b>Foto Struk:</b> Klik tombol kamera untuk memindai struk fisik.</div>
-            <div>• <b>Ketik:</b> Cth: <i>"kopi 25rb"</i>, <i>"bensin 30k"</i>, <i>"gaji 5jt"</i>.</div>
+            <div>• <b>Suara:</b> Ucapkan <i>"setor orang tua satu juta"</i> atau <i>"beli kopi 25 ribu"</i>.</div>
+            <div>• <b>Foto Struk:</b> Foto struk belanja kasir langsung dari kamera.</div>
+            <div>• <b>Ketik Bebas:</b> Cth: <i>"bensin 30rb"</i>, <i>"gaji 5jt"</i>, <i>"makan 35k"</i>.</div>
           </div>
         </div>
       </div>
@@ -111,8 +102,8 @@
         <button onclick="fillInput('beli kopi 25rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
           ☕ Kopi 25rb
         </button>
-        <button onclick="fillInput('makan siang 35k')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
-          🍛 Makan 35k
+        <button onclick="fillInput('setor orang tua satu juta')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
+          👨‍👩‍👦 Setor Ortu 1jt
         </button>
         <button onclick="fillInput('isi bensin 30rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
           ⛽ Bensin 30rb
@@ -122,21 +113,19 @@
         </button>
       </div>
 
-      <!-- Hidden file input for OCR -->
+      <!-- File input with automatic compressor -->
       <input type="file" id="receipt-file-input" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
 
       <form onsubmit="handleUserInput(event)" class="flex items-center gap-1.5">
-        <!-- Voice Input Button -->
         <button type="button" id="btn-voice" onclick="toggleVoiceRecording()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 w-9 h-9 rounded-xl flex items-center justify-center transition flex-shrink-0" title="Input Suara">
           <i class="fas fa-microphone text-xs"></i>
         </button>
 
-        <!-- Camera / Scan Receipt Button -->
         <button type="button" onclick="document.getElementById('receipt-file-input').click()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-400 w-9 h-9 rounded-xl flex items-center justify-center transition flex-shrink-0" title="Scan Struk Belanja">
           <i class="fas fa-camera text-xs"></i>
         </button>
 
-        <input type="text" id="chat-input" placeholder="Ketik atau gunakan mic..." required class="flex-1 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none transition">
+        <input type="text" id="chat-input" placeholder="Ucapkan suara atau ketik..." required class="flex-1 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none transition">
         <button type="submit" id="btn-send" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1 transition flex-shrink-0">
           <i class="fas fa-paper-plane text-[10px]"></i>
         </button>
@@ -144,9 +133,8 @@
     </div>
   </section>
 
-  <!-- TAB 2: Charts, Health Score & AI Advisor -->
+  <!-- TAB 2: Analysis & Health Score -->
   <section id="tab-charts" class="hidden flex-1 max-w-2xl w-full mx-auto space-y-3">
-    <!-- Financial Health & 50/30/20 Breakdown -->
     <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2">
         <h2 class="font-bold text-xs text-slate-200 uppercase tracking-wider flex items-center gap-2">
@@ -168,7 +156,7 @@
 
         <div>
           <div class="flex justify-between text-[10px] mb-1">
-            <span class="text-slate-400">Keinginan & Lifestyle (Maks 30%)</span>
+            <span class="text-slate-400">Keinginan & Gaya Hidup (Maks 30%)</span>
             <span id="ratio-wants-pct" class="font-bold text-amber-400">0%</span>
           </div>
           <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
@@ -178,7 +166,7 @@
 
         <div>
           <div class="flex justify-between text-[10px] mb-1">
-            <span class="text-slate-400">Tabungan & Investasi (Min 20%)</span>
+            <span class="text-slate-400">Tabungan / Sisa Saldo (Min 20%)</span>
             <span id="ratio-savings-pct" class="font-bold text-emerald-400">0%</span>
           </div>
           <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
@@ -192,9 +180,9 @@
     <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
       <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
         <h2 class="font-bold text-xs text-slate-200 uppercase tracking-wider flex items-center gap-2">
-          <i class="fas fa-chart-pie text-emerald-400"></i> Diagram Kategori
+          <i class="fas fa-chart-pie text-emerald-400"></i> Diagram Kategori Pengeluaran
         </h2>
-        <span class="text-[10px] text-slate-400">Distribusi Biaya</span>
+        <span class="text-[10px] text-slate-400">Otomatis</span>
       </div>
       <div class="w-full max-w-[220px] mx-auto h-[220px] relative">
         <canvas id="categoryChart"></canvas>
@@ -215,12 +203,12 @@
         </button>
       </div>
       <div id="ai-insight-box" class="text-xs text-slate-300 leading-relaxed bg-slate-950/60 border border-slate-800 rounded-xl p-3 whitespace-pre-wrap min-h-[70px]">
-        Klik "Analisis AI" untuk evaluasi komprehensif dari kebiasaan belanja Anda.
+        Klik "Analisis AI" untuk evaluasi komprehensif kebiasaan belanja Anda.
       </div>
     </div>
   </section>
 
-  <!-- TAB 3: Goal Tracker / Target Impian -->
+  <!-- TAB 3: Goal Tracker -->
   <section id="tab-goals" class="hidden flex-1 max-w-2xl w-full mx-auto space-y-3">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-xl flex items-center justify-between">
       <div>
@@ -232,9 +220,7 @@
       </button>
     </div>
 
-    <div id="goals-container" class="space-y-2.5">
-      <!-- Diisi otomatis oleh JavaScript -->
-    </div>
+    <div id="goals-container" class="space-y-2.5"></div>
   </section>
 
   <!-- TAB 4: Spreadsheet History -->
@@ -242,7 +228,7 @@
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl flex items-center justify-between gap-2">
       <div>
         <h2 class="font-bold text-xs text-slate-100">Daftar Transaksi Lengkap</h2>
-        <p class="text-[10px] text-slate-400">Penyimpanan lokal browser</p>
+        <p class="text-[10px] text-slate-400">Tersimpan otomatis di memori browser</p>
       </div>
       <div class="flex items-center gap-2">
         <button onclick="exportToCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition text-[11px]">
@@ -268,15 +254,13 @@
               <th class="p-2 text-center">AKSI</th>
             </tr>
           </thead>
-          <tbody id="history-table-body" class="divide-y divide-slate-800">
-            <!-- Diisi JavaScript -->
-          </tbody>
+          <tbody id="history-table-body" class="divide-y divide-slate-800"></tbody>
         </table>
       </div>
     </div>
   </section>
 
-  <!-- MODAL 1: Budget Settings -->
+  <!-- MODALS -->
   <div id="budget-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
     <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -288,7 +272,6 @@
       <div>
         <label class="text-[10px] text-slate-400 block mb-1">Batas Maksimal Pengeluaran (Rp):</label>
         <input type="number" id="input-monthly-budget" placeholder="Contoh: 2000000" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-amber-400 font-bold font-mono focus:outline-none focus:border-emerald-500">
-        <p class="text-[10px] text-slate-500 mt-1">Sistem akan menghitung jatah harian aman secara otomatis.</p>
       </div>
       <button onclick="saveBudget()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition">
         Simpan Anggaran
@@ -296,7 +279,6 @@
     </div>
   </div>
 
-  <!-- MODAL 2: Add Goal -->
   <div id="goal-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
     <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -319,7 +301,7 @@
           <input type="number" id="goal-current" placeholder="500000" value="0" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200 font-mono">
         </div>
         <div>
-          <label class="text-[10px] text-slate-400 block mb-1">Tenggat Waktu (Target Bulan/Tahun)</label>
+          <label class="text-[10px] text-slate-400 block mb-1">Tenggat Waktu</label>
           <input type="text" id="goal-deadline" placeholder="Desember 2026" required class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-slate-200">
         </div>
         <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition mt-2">
@@ -329,7 +311,6 @@
     </div>
   </div>
 
-  <!-- MODAL 3: API Key -->
   <div id="api-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
     <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -341,7 +322,6 @@
       <div>
         <label class="text-[10px] text-slate-400 block mb-1">Kunci API:</label>
         <input type="password" id="input-api-key" placeholder="sk-or-v1-..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
-        <p class="text-[10px] text-slate-500 mt-1">Dibutuhkan untuk konsultasi obrolan & fitur Scan Struk OCR.</p>
       </div>
       <button onclick="saveApiKey()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition">
         Simpan Kunci
@@ -363,12 +343,6 @@
     let recognition = null;
     let isRecording = false;
 
-    const AI_MODELS = [
-      'google/gemini-2.0-flash-lite-001',
-      'google/gemini-2.0-flash-001',
-      'openrouter/auto'
-    ];
-
     document.addEventListener('DOMContentLoaded', () => {
       initSpeechRecognition();
       renderAll();
@@ -379,11 +353,39 @@
       renderSummary();
       renderHistoryTable();
       renderGoals();
-      checkAnomalies();
       if (chartInstance) updateChartData();
     }
 
-    // 1. Web Speech API (Voice-to-Text)
+    // 1. Indonesian Word Number Converter
+    function normalizeIndonesianWords(text) {
+      let s = text.toLowerCase()
+        .replace(/setengah juta/g, '500000')
+        .replace(/setengah/g, '0.5')
+        .replace(/sejuta/g, '1000000')
+        .replace(/seribu/g, '1000')
+        .replace(/seratus ribu/g, '100000')
+        .replace(/seratus/g, '100')
+        .replace(/sepuluh ribu/g, '10000')
+        .replace(/sepuluh/g, '10')
+        .replace(/sebelas/g, '11');
+
+      // Map kata dasar ke angka
+      const unitMap = {
+        'satu': 1, 'dua': 2, 'tiga': 3, 'empat': 4, 'lima': 5,
+        'enam': 6, 'tujuh': 7, 'delapan': 8, 'sembilan': 9, 'sepuluh': 10
+      };
+
+      // Handle kombinasi kata seperti "satu juta", "tiga ratus ribu", "lima puluh ribu"
+      s = s.replace(/(satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)\s*juta/g, (m, p1) => (unitMap[p1] * 1000000).toString());
+      s = s.replace(/(satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)\s*ratus\s*ribu/g, (m, p1) => (unitMap[p1] * 100000).toString());
+      s = s.replace(/(satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)\s*puluh\s*ribu/g, (m, p1) => (unitMap[p1] * 10000).toString());
+      s = s.replace(/(satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)\s*ribu/g, (m, p1) => (unitMap[p1] * 1000).toString());
+      s = s.replace(/(satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)\s*ratus/g, (m, p1) => (unitMap[p1] * 100).toString());
+
+      return s;
+    }
+
+    // 2. Web Speech API Voice Recognition
     function initSpeechRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
@@ -407,15 +409,12 @@
     function toggleVoiceRecording(forceState) {
       const btn = document.getElementById('btn-voice');
       if (!recognition) {
-        alert('Fitur input suara belum didukung di browser ini. Gunakan Google Chrome versi terbaru.');
+        alert('Fitur suara tidak didukung browser ini. Gunakan Google Chrome.');
         return;
       }
 
-      if (forceState !== undefined) {
-        isRecording = forceState;
-      } else {
-        isRecording = !isRecording;
-      }
+      if (forceState !== undefined) isRecording = forceState;
+      else isRecording = !isRecording;
 
       if (isRecording) {
         btn.classList.add('recording-active');
@@ -426,91 +425,115 @@
       }
     }
 
-    // 2. Scan Foto Struk Belanja (OCR Vision AI)
+    // 3. Compress Image Before OCR (Fixes OCR Error)
+    function compressImageFile(file, maxWidth = 1024, quality = 0.8) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+        };
+      });
+    }
+
+    // 4. Scan Receipt with Compressed Base64 Image
     async function handleReceiptUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const apiKey = localStorage.getItem(API_KEY_STORAGE);
       if (!apiKey) {
-        alert('Fitur Scan Struk memerlukan API Key. Silakan masukkan API Key Anda pada tombol di kanan atas.');
+        alert('Fitur Scan Struk memerlukan API Key. Silakan klik tombol API di kanan atas.');
         openApiKeyModal();
         return;
       }
 
       const loaderId = 'loader-receipt-' + Date.now();
-      appendChatMessage('assistant', '📷 Sedang menganalisis struk belanja Anda dengan AI Vision...', loaderId);
+      appendChatMessage('assistant', '📷 Sedang memproses dan membaca struk dengan AI Vision...', loaderId);
 
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64Data = reader.result;
+      try {
+        const base64Compressed = await compressImageFile(file);
 
-        try {
-          const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey.trim()}`,
-              'HTTP-Referer': window.location.origin,
-              'X-Title': 'FinAI Receipt Scanner'
-            },
-            body: JSON.stringify({
-              model: 'google/gemini-2.0-flash-001',
-              messages: [
-                {
-                  role: 'user',
-                  content: [
-                    {
-                      type: 'text',
-                      text: 'Ekstrak total nominal belanja dan nama toko/item utama dari struk ini. Wajib kembalikan HANYA format JSON valid tanpa format markdown atau backticks: {"description": "Nama Toko / Barang", "nominal": 25000, "category": "Makanan & Minuman / Belanja Harian / Transportasi / Tagihan & Utilitas / Hiburan & Santai / Kesehatan"}'
-                    },
-                    {
-                      type: 'image_url',
-                      image_url: { url: base64Data }
-                    }
-                  ]
-                }
-              ]
-            })
-          });
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey.trim()}`,
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'FinAI Scanner'
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.0-flash-001',
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: 'Ekstrak total nominal belanja dan nama toko/item dari struk ini. Wajib kembalikan format JSON: {"description": "Nama Toko / Barang", "nominal": 25000, "category": "Makanan & Minuman"}'
+                  },
+                  {
+                    type: 'image_url',
+                    image_url: { url: base64Compressed }
+                  }
+                ]
+              }
+            ]
+          })
+        });
 
-          const data = await res.json();
-          document.getElementById(loaderId)?.remove();
+        const data = await res.json();
+        document.getElementById(loaderId)?.remove();
 
-          let rawContent = data.choices?.[0]?.message?.content || '{}';
-          rawContent = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();
-          const parsed = JSON.parse(rawContent);
+        const content = data.choices?.[0]?.message?.content || '';
+        const jsonMatch = content.match(/\{[\s\S]*?\}/);
 
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
           if (parsed && parsed.nominal) {
-            const newTrx = {
-              id: Date.now(),
-              date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+            recordTransaction({
               description: parsed.description || 'Struk Belanja',
+              nominal: parseFloat(parsed.nominal),
               type: 'expense',
-              category: parsed.category || 'Belanja Harian',
-              nominal: parseFloat(parsed.nominal)
-            };
+              category: parsed.category || 'Belanja Harian'
+            });
 
-            transactions.unshift(newTrx);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
-            renderAll();
-
-            appendChatMessage('assistant', `🧾 **Struk Berhasil Dipindai!**\n• **Toko/Item:** ${newTrx.description}\n• **Total:** Rp ${newTrx.nominal.toLocaleString('id-ID')}\n• **Kategori:** ${newTrx.category}`);
-          } else {
-            appendChatMessage('assistant', '⚠️ Tidak dapat mendeteksi nominal pada struk. Pastikan foto struk terlihat jelas dan terang.');
+            appendChatMessage('assistant', `🧾 **Struk Berhasil Dicatat!**\n• **Item:** ${parsed.description || 'Struk Belanja'}\n• **Total:** Rp ${parseFloat(parsed.nominal).toLocaleString('id-ID')}\n• **Kategori:** ${parsed.category || 'Belanja Harian'}`);
+            return;
           }
-        } catch (err) {
-          document.getElementById(loaderId)?.remove();
-          appendChatMessage('assistant', '⚠️ Gagal membaca struk: ' + err.message);
         }
-      };
-      reader.readAsDataURL(file);
-      event.target.value = '';
+        appendChatMessage('assistant', '⚠️ Tidak dapat membaca nominal struk. Pastikan foto struk fokus dan cukup cahaya.');
+      } catch (err) {
+        document.getElementById(loaderId)?.remove();
+        appendChatMessage('assistant', '⚠️ Gagal membaca struk: ' + err.message);
+      } finally {
+        event.target.value = '';
+      }
     }
 
-    // 3. Natural Language Parser
-    function parseNaturalLanguage(text) {
-      const lower = text.toLowerCase().trim();
+    // 5. Natural Language Parser
+    function parseNaturalLanguage(rawText) {
+      const normalized = normalizeIndonesianWords(rawText);
+      const lower = normalized.toLowerCase().trim();
+
+      // Deteksi Angka
       let nominal = 0;
       const numMatch = lower.match(/(\d+(?:[.,]\d+)?)\s*(juta|jt|ribu|rb|k)?/i);
 
@@ -527,34 +550,50 @@
 
       if (!nominal || nominal <= 0) return null;
 
-      const incomeKeywords = ['gaji', 'income', 'masuk', 'dapat', 'bonus', 'cair', 'terima', 'jual', 'dividen', 'profit'];
-      const isIncome = incomeKeywords.some(kw => lower.includes(kw));
-      const type = isIncome ? 'income' : 'expense';
+      // Deteksi Jenis Transaksi
+      const incomeKeywords = ['gaji', 'income', 'masuk', 'cair', 'dapat rejeki', 'dikasih', 'bonus', 'dividen', 'profit', 'terima uang'];
+      const expenseKeywords = ['setor', 'kasih', 'kirim', 'transfer ke', 'bayar', 'beli', 'isi', 'belanja', 'nongkrong'];
 
-      let category = isIncome ? 'Gaji & Pendapatan' : 'Lainnya';
-      if (!isIncome) {
-        if (/(kopi|coffee|cafe|makan|minum|resto|warteg|snack|jajan|sarapan|lunch|dinner|nasi|mie|bakso|ayam|sate)/i.test(lower)) category = 'Makanan & Minuman';
-        else if (/(bensin|pertalite|pertamax|parkir|gojek|grab|ojol|tol|angkot|kereta|service|oli|motor|mobil)/i.test(lower)) category = 'Transportasi';
-        else if (/(listrik|token|pln|pdam|air|wifi|internet|indihome|pulsa|kuota|sewa|kos|kontrakan|bpjs|tagihan|cicilan)/i.test(lower)) category = 'Tagihan & Utilitas';
-        else if (/(belanja|shopee|tokopedia|tiktok|baju|celana|sepatu|skincare|supermarket|indomaret|alfamart)/i.test(lower)) category = 'Belanja Harian';
-        else if (/(nonton|bioskop|game|topup|steam|netflix|spotify|karaoke|liburan|wisata|nongkrong)/i.test(lower)) category = 'Hiburan & Santai';
-        else if (/(obat|apotek|dokter|vitamin|klinik|rs|rumah sakit|sehat)/i.test(lower)) category = 'Kesehatan';
-        else if (/(tabung|invest|emas|reksadana|saham|crypto|deposito)/i.test(lower)) category = 'Tabungan & Investasi';
+      let type = 'expense';
+      if (incomeKeywords.some(kw => lower.includes(kw)) && !lower.includes('setor') && !lower.includes('kirim')) {
+        type = 'income';
       }
 
-      let description = text.replace(/(\d+(?:[.,]\d+)?)\s*(juta|jt|ribu|rb|k)?/gi, '').trim();
+      // Deteksi Kategori
+      let category = type === 'income' ? 'Gaji & Pendapatan' : 'Lainnya';
+      if (type === 'expense') {
+        if (/setor|orang tua|keluarga|ortu|ibu|ayah|mama|papa/i.test(lower)) category = 'Keluarga & Transfer';
+        else if (/kopi|makan|minum|resto|warteg|snack|jajan|sarapan|lunch|dinner|nasi|mie|bakso|ayam/i.test(lower)) category = 'Makanan & Minuman';
+        else if (/bensin|pertalite|pertamax|parkir|gojek|grab|ojol|tol|angkot|kereta|service|oli|motor|mobil/i.test(lower)) category = 'Transportasi';
+        else if (/listrik|token|pln|pdam|air|wifi|internet|pulsa|kuota|sewa|kos|kontrakan|bpjs|tagihan|cicilan/i.test(lower)) category = 'Tagihan & Utilitas';
+        else if (/belanja|shopee|tokopedia|tiktok|baju|celana|sepatu|skincare|supermarket|indomaret|alfamart/i.test(lower)) category = 'Belanja Harian';
+        else if (/nonton|bioskop|game|topup|steam|netflix|spotify|karaoke|liburan|wisata/i.test(lower)) category = 'Hiburan & Santai';
+        else if (/obat|apotek|dokter|vitamin|klinik|rs|rumah sakit|sehat/i.test(lower)) category = 'Kesehatan';
+        else if (/tabung|invest|emas|reksadana|saham|crypto|deposito/i.test(lower)) category = 'Tabungan & Investasi';
+      }
+
+      let description = rawText.replace(/(\d+(?:[.,]\d+)?)\s*(juta|jt|ribu|rb|k)?/gi, '').trim();
       description = description.replace(/^(beli|bayar|isi|buat|untuk|beliin)\s+/i, '');
       if (!description) description = category;
       description = description.charAt(0).toUpperCase() + description.slice(1);
 
-      return {
+      return { description, nominal, type, category };
+    }
+
+    function recordTransaction(item) {
+      const trx = {
         id: Date.now(),
         date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
-        description: description,
-        type: type,
-        category: category,
-        nominal: nominal
+        description: item.description,
+        type: item.type,
+        category: item.category,
+        nominal: item.nominal
       };
+
+      transactions.unshift(trx);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+      renderAll();
+      return trx;
     }
 
     async function handleUserInput(e) {
@@ -568,21 +607,19 @@
 
       const parsed = parseNaturalLanguage(text);
       if (parsed) {
-        transactions.unshift(parsed);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
-        renderAll();
-
-        const typeLabel = parsed.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
-        appendChatMessage('assistant', `✅ **${typeLabel} Dicatat!**\n• **Item:** ${parsed.description}\n• **Nominal:** Rp ${parsed.nominal.toLocaleString('id-ID')}\n• **Kategori:** ${parsed.category}`);
+        const trx = recordTransaction(parsed);
+        const typeLabel = trx.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+        appendChatMessage('assistant', `✅ **${typeLabel} Dicatat!**\n• **Item:** ${trx.description}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}\n• **Kategori:** ${trx.category}`);
       } else {
         await askAiConversation(text);
       }
     }
 
+    // 6. AI Conversation with Direct Auto-Execution
     async function askAiConversation(promptText) {
       const apiKey = localStorage.getItem(API_KEY_STORAGE);
       if (!apiKey) {
-        appendChatMessage('assistant', '💡 Catatan langsung otomatis tersimpan jika ada angka (cth: "kopi 25rb"). Untuk konsultasi dengan AI, masukkan API Key pada tombol **API** di kanan atas.');
+        appendChatMessage('assistant', '💡 Transaksi otomatis tercatat jika menyebutkan nominal (misal: "setor orang tua 1 juta" atau "kopi 25rb"). Untuk obrolan AI, masukkan API Key pada tombol API di kanan atas.');
         return;
       }
 
@@ -593,28 +630,53 @@
         const totalExp = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.nominal, 0);
         const totalInc = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.nominal, 0);
 
-        const response = await fetchWithFallback({
-          modelIndex: 0,
-          apiKey: apiKey,
-          messages: [
-            {
-              role: "system",
-              content: `Anda adalah FinAI, asisten keuangan pribadi cerdas. Pemasukan total pengguna: Rp ${totalInc.toLocaleString('id-ID')}, Total pengeluaran: Rp ${totalExp.toLocaleString('id-ID')}. Berikan jawaban ringkas, solutif, dan ramah.`
-            },
-            { role: "user", content: promptText }
-          ]
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey.trim()}`,
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'FinAI Manager'
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.0-flash-001',
+            messages: [
+              {
+                role: 'system',
+                content: `Anda adalah FinAI, asisten keuangan pribadi. Saldo Pemasukan: Rp ${totalInc.toLocaleString('id-ID')}, Pengeluaran: Rp ${totalExp.toLocaleString('id-ID')}. Jika pengguna menyebutkan transaksi keuangan dalam kalimatnya, WAJIB sertakan blok JSON di paling akhir respons Anda: {"record": {"description": "Nama Transaksi", "nominal": 1000000, "type": "expense|income", "category": "Kategori"}}`
+              },
+              { role: 'user', content: promptText }
+            ]
+          })
         });
 
-        const reply = response.choices?.[0]?.message?.content || 'Maaf, tidak ada tanggapan.';
+        const data = await res.json();
         document.getElementById(loaderId)?.remove();
-        appendChatMessage('assistant', reply);
+
+        const rawReply = data.choices?.[0]?.message?.content || 'Maaf, belum ada respons.';
+        
+        // Cek jika AI menyertakan perintah simpan transaksi otomatis
+        const jsonMatch = rawReply.match(/\{"record":\s*\{[\s\S]*?\}\}/);
+        let cleanReply = rawReply;
+
+        if (jsonMatch) {
+          try {
+            const parsedAction = JSON.parse(jsonMatch[0]);
+            if (parsedAction.record && parsedAction.record.nominal) {
+              recordTransaction(parsedAction.record);
+            }
+            cleanReply = rawReply.replace(jsonMatch[0], '').replace(/```json/g, '').replace(/```/g, '').trim();
+          } catch (e) {}
+        }
+
+        appendChatMessage('assistant', cleanReply);
       } catch (err) {
         document.getElementById(loaderId)?.remove();
         appendChatMessage('assistant', `⚠️ Gagal menghubungi AI: ${err.message}`);
       }
     }
 
-    // 4. Perhitungan Jatah Harian Dinamis & Skor 50/30/20
+    // 7. Summary & Metrics Calculation
     function renderSummary() {
       let income = 0;
       let expense = 0;
@@ -627,7 +689,7 @@
           income += t.nominal;
         } else {
           expense += t.nominal;
-          if (['Makanan & Minuman', 'Transportasi', 'Tagihan & Utilitas', 'Kesehatan'].includes(t.category)) needs += t.nominal;
+          if (['Makanan & Minuman', 'Transportasi', 'Tagihan & Utilitas', 'Kesehatan', 'Keluarga & Transfer'].includes(t.category)) needs += t.nominal;
           else if (['Belanja Harian', 'Hiburan & Santai', 'Lainnya'].includes(t.category)) wants += t.nominal;
           else if (t.category === 'Tabungan & Investasi') savings += t.nominal;
         }
@@ -636,7 +698,6 @@
       document.getElementById('stat-income').textContent = `Rp ${income.toLocaleString('id-ID')}`;
       document.getElementById('stat-expense').textContent = `Rp ${expense.toLocaleString('id-ID')}`;
 
-      // Daily Allowance
       const now = new Date();
       const totalDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
       const remainingDays = Math.max(1, totalDaysInMonth - now.getDate() + 1);
@@ -645,7 +706,6 @@
 
       document.getElementById('stat-daily-allowance').textContent = `Rp ${dailyAllowance.toLocaleString('id-ID')}/hr`;
 
-      // 50/30/20 Health Score
       const totalOutflow = expense || 1;
       const needsPct = Math.min(100, Math.round((needs / totalOutflow) * 100));
       const wantsPct = Math.min(100, Math.round((wants / totalOutflow) * 100));
@@ -664,9 +724,8 @@
       if (savingsPct < 20) score -= (20 - savingsPct);
       score = Math.max(20, Math.min(100, Math.round(score)));
 
+      document.getElementById('stat-health-score').textContent = score + '/100';
       const healthBadge = document.getElementById('health-grade-badge');
-      const scoreStat = document.getElementById('stat-health-score');
-      scoreStat.textContent = score + '/100';
 
       if (score >= 80) {
         healthBadge.textContent = 'PRIMA';
@@ -680,33 +739,13 @@
       }
     }
 
-    // 5. Deteksi Pola Boros (Anomaly Detection)
-    function checkAnomalies() {
-      const recentExpenses = transactions.filter(t => t.type === 'expense').slice(0, 10);
-      let coffeeOrSnackCount = 0;
-
-      recentExpenses.forEach(t => {
-        if (/kopi|coffee|snack|jajan|boba|nongkrong/i.test(t.description)) coffeeOrSnackCount++;
-      });
-
-      const banner = document.getElementById('anomaly-banner');
-      const text = document.getElementById('anomaly-text');
-
-      if (coffeeOrSnackCount >= 3) {
-        text.textContent = `Peringatan: Terdeteksi ${coffeeOrSnackCount} transaksi jajan/kopi berturut-turut. Pertimbangkan untuk membatasi pengeluaran mikro hari ini.`;
-        banner.classList.remove('hidden');
-      } else {
-        banner.classList.add('hidden');
-      }
-    }
-
-    // 6. Goal Tracker (Dana Impian)
+    // 8. Goals & Table Rendering
     function renderGoals() {
       const container = document.getElementById('goals-container');
       if (goals.length === 0) {
         container.innerHTML = `
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center text-slate-500">
-            Belum ada target tabungan. Klik "+ Tambah Target" di atas untuk membuat rencana dana impian Anda!
+            Belum ada target tabungan. Klik "+ Tambah Target" di atas untuk membuat rencana dana impian!
           </div>
         `;
         return;
@@ -740,22 +779,16 @@
 
     function handleSaveGoal(e) {
       e.preventDefault();
-      const newGoal = {
+      goals.push({
         id: Date.now(),
         name: document.getElementById('goal-name').value,
         target: parseFloat(document.getElementById('goal-target').value) || 0,
         current: parseFloat(document.getElementById('goal-current').value) || 0,
         deadline: document.getElementById('goal-deadline').value
-      };
-
-      goals.push(newGoal);
+      });
       localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
       closeGoalModal();
       renderGoals();
-      document.getElementById('goal-name').value = '';
-      document.getElementById('goal-target').value = '';
-      document.getElementById('goal-current').value = '0';
-      document.getElementById('goal-deadline').value = '';
     }
 
     function deleteGoal(id) {
@@ -764,7 +797,6 @@
       renderGoals();
     }
 
-    // 7. Chart & AI Audit Helper
     function initChart() {
       const ctx = document.getElementById('categoryChart').getContext('2d');
       chartInstance = new Chart(ctx, {
@@ -773,7 +805,7 @@
           labels: [],
           datasets: [{
             data: [],
-            backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f43f5e', '#64748b'],
+            backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f43f5e', '#64748b', '#14b8a6'],
             borderWidth: 2,
             borderColor: '#0f172a'
           }]
@@ -827,7 +859,7 @@
       }
 
       const box = document.getElementById('ai-insight-box');
-      box.textContent = '🧠 Sedang menganalisis rasio keuangan dan kebiasaan belanja Anda...';
+      box.textContent = '🧠 Sedang menganalisis rasio 50/30/20 dan kebiasaan belanja Anda...';
 
       const expList = transactions.filter(t => t.type === 'expense');
       const incList = transactions.filter(t => t.type === 'income');
@@ -837,56 +869,34 @@
       const catTotals = {};
       expList.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + t.nominal; });
 
-      const auditPrompt = `Tolong evaluasi data keuangan saya:
-Total Pemasukan: Rp ${totalInc.toLocaleString('id-ID')}
-Total Pengeluaran: Rp ${totalExp.toLocaleString('id-ID')}
-Batas Anggaran Bulanan: Rp ${monthlyBudget.toLocaleString('id-ID')}
-Breakdown Kategori: ${JSON.stringify(catTotals)}
-Daftar transaksi terbaru: ${JSON.stringify(transactions.slice(0, 8))}
-
-Berikan:
-1. Penilaian kepatuhan rasio 50/30/20.
-2. Evaluasi pemicu kebocoran dana (micro-spending).
-3. 2 langkah taktis menghemat sisa jatah harian.`;
-
       try {
-        const response = await fetchWithFallback({
-          modelIndex: 0,
-          apiKey: apiKey,
-          messages: [
-            { role: "system", content: "Anda adalah penasihat keuangan pribadi independen yang tajam dan solutif." },
-            { role: "user", content: auditPrompt }
-          ]
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey.trim()}`,
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'FinAI Manager'
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.0-flash-001',
+            messages: [
+              { role: 'system', content: 'Anda adalah konsultan keuangan pribadi profesional.' },
+              {
+                role: 'user',
+                content: `Evaluasi kondisi keuangan saya: Total Masuk Rp ${totalInc.toLocaleString('id-ID')}, Total Keluar Rp ${totalExp.toLocaleString('id-ID')}, Breakdown: ${JSON.stringify(catTotals)}. Berikan ringkasan, evaluasi rasio 50/30/20, dan 2 tips penghematan mingguan.`
+              }
+            ]
+          })
         });
 
-        box.textContent = response.choices?.[0]?.message?.content || 'Gagal memuat evaluasi.';
+        const data = await res.json();
+        box.textContent = data.choices?.[0]?.message?.content || 'Gagal memuat evaluasi.';
       } catch (err) {
         box.textContent = '⚠️ Gagal menghubungi server AI: ' + err.message;
       }
     }
 
-    async function fetchWithFallback({ modelIndex, apiKey, messages }) {
-      const model = AI_MODELS[modelIndex] || AI_MODELS[0];
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey.trim()}`,
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'FinAI Manager'
-        },
-        body: JSON.stringify({ model: model, messages: messages })
-      });
-
-      const data = await res.json();
-      if (data.error && modelIndex < AI_MODELS.length - 1) {
-        return fetchWithFallback({ modelIndex: modelIndex + 1, apiKey, messages });
-      }
-      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-      return data;
-    }
-
-    // 8. History & Table Helper
     function renderHistoryTable() {
       const tbody = document.getElementById('history-table-body');
       if (transactions.length === 0) {
@@ -930,7 +940,7 @@ Berikan:
     }
 
     function clearAllData() {
-      if (confirm('Hapus seluruh catatan transaksi keuangan?')) {
+      if (confirm('Hapus seluruh catatan transaksi?')) {
         transactions = [];
         localStorage.removeItem(STORAGE_KEY);
         renderAll();
@@ -938,7 +948,7 @@ Berikan:
     }
 
     function exportToCSV() {
-      if (transactions.length === 0) return alert('Tidak ada transaksi untuk diekspor!');
+      if (transactions.length === 0) return alert('Tidak ada data transaksi!');
       let csv = 'No,Tanggal,Deskripsi,Tipe,Kategori,Nominal\n';
       transactions.forEach((t, i) => {
         csv += `"${i+1}","${t.date}","${t.description}","${t.type}","${t.category}","${t.nominal}"\n`;
@@ -997,7 +1007,6 @@ Berikan:
       if (tab === 'charts') updateChartData();
     }
 
-    // Modal Handlers
     function openBudgetModal() {
       document.getElementById('input-monthly-budget').value = monthlyBudget;
       document.getElementById('budget-modal').classList.remove('hidden');
