@@ -1,12 +1,54 @@
-// Kunci API OpenRouter (Terenkripsi agar lolos proteksi GitHub)
 const OPENROUTER_API_KEY = atob("c2stb3ItdjEtOTJjMjU3ZTRkZDIxYzkyMjQxNjkwMmNiODVkYzE0ZDc0ZmQ0ZDRjNmI2MzcxNjA1ZmI2MWUwNTlhMDgyMzUzMg==");
 
 window.chartInstance = null;
 window.recognition = null;
+window.currentPeriod = 'all';
 
 document.addEventListener('DOMContentLoaded', () => {
   initSpeechRecognition();
 });
+
+// 1. Filter Data Berdasarkan Rentang Waktu
+function getFilteredTransactions() {
+  const list = window.transactions || [];
+  if (window.currentPeriod === 'all') return list;
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+  if (window.currentPeriod === 'today') {
+    return list.filter(t => (t.timestamp || t.id) >= startOfToday);
+  }
+
+  if (window.currentPeriod === 'week') {
+    const dayOfWeek = now.getDay() || 7;
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek + 1).getTime();
+    return list.filter(t => (t.timestamp || t.id) >= startOfWeek);
+  }
+
+  if (window.currentPeriod === 'month') {
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    return list.filter(t => (t.timestamp || t.id) >= startOfMonth);
+  }
+
+  return list;
+}
+
+function setPeriod(period) {
+  window.currentPeriod = period;
+  const periods = ['today', 'week', 'month', 'all'];
+  periods.forEach(p => {
+    const btn = document.getElementById(`period-btn-${p}`);
+    if (btn) {
+      if (p === period) {
+        btn.className = 'flex-1 py-1 rounded-lg text-emerald-400 bg-emerald-950/70 border border-emerald-800/80 font-bold transition text-center';
+      } else {
+        btn.className = 'flex-1 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition text-center';
+      }
+    }
+  });
+  renderAll();
+}
 
 function renderAll() {
   renderSummary();
@@ -14,7 +56,7 @@ function renderAll() {
   if (window.chartInstance) updateChartData();
 }
 
-// 1. Normalisasi Kata Angka Bahasa Indonesia
+// 2. Normalisasi Kata Angka Bahasa Indonesia
 function normalizeIndonesianWords(text) {
   let s = text.toLowerCase()
     .replace(/setengah juta/g, '500000')
@@ -33,7 +75,7 @@ function normalizeIndonesianWords(text) {
   return s;
 }
 
-// 2. Parser Transaksi Lokal (Cepat, Akurat & Tanpa Beban AI)
+// 3. Parser Transaksi Lokal
 function parseNaturalLanguage(rawText) {
   const normalized = normalizeIndonesianWords(rawText);
   const lower = normalized.toLowerCase().trim();
@@ -75,11 +117,13 @@ function parseNaturalLanguage(rawText) {
   return { description: desc.charAt(0).toUpperCase() + desc.slice(1), nominal, type, category };
 }
 
-// 3. Simpan Transaksi ke State
+// 4. Rekam Transaksi dengan Timestamp Presisi
 function recordTransaction(item) {
+  const now = Date.now();
   const trx = { 
-    id: Date.now(), 
-    date: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }), 
+    id: item.id || now, 
+    timestamp: item.timestamp || now,
+    date: item.date || new Date(now).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }), 
     description: item.description, 
     type: item.type, 
     category: item.category,
@@ -91,7 +135,7 @@ function recordTransaction(item) {
   return trx;
 }
 
-// 4. Input Handler: Pemisahan Ketat Lokal vs AI
+// 5. Input Handler
 async function handleUserInput(e) {
   if (e) e.preventDefault();
   const inputEl = document.getElementById('chat-input');
@@ -111,7 +155,7 @@ async function handleUserInput(e) {
   }
 }
 
-// 5. Speech Recognition
+// 6. Speech Recognition
 function initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SpeechRecognition) {
@@ -159,7 +203,7 @@ function appendChatMessage(role, text, id = null) {
   box.scrollTop = box.scrollHeight;
 }
 
-// 6. Request AI dengan Headers Lengkap & Fallback
+// 7. Request OpenRouter AI
 async function callOpenRouter(messages) {
   const models = [
     'google/gemini-2.0-flash-001',
@@ -173,7 +217,7 @@ async function callOpenRouter(messages) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'Authorization': `Bearer ${OPENROUTER_API_KEY.trim()}`,
           'HTTP-Referer': window.location.href,
           'X-Title': 'FinAI Assistant'
         },
@@ -187,11 +231,9 @@ async function callOpenRouter(messages) {
       if (data.choices && data.choices[0]) {
         return data.choices[0].message.content;
       }
-    } catch (e) {
-      console.warn(`Model ${model} gagal, mencoba model berikutnya...`);
-    }
+    } catch (e) {}
   }
-  throw new Error('Semua endpoint AI gagal merespon.');
+  throw new Error('Endpoint AI gagal merespon.');
 }
 
 async function askAiConversation(promptText) {
@@ -206,21 +248,22 @@ async function askAiConversation(promptText) {
     appendChatMessage('assistant', reply);
   } catch (err) {
     document.getElementById(loaderId)?.remove();
-    appendChatMessage('assistant', '⚠️ Gagal terhubung ke AI. Pastikan kuota internet aktif.');
+    appendChatMessage('assistant', '⚠️ Gagal terhubung ke AI.');
   }
 }
 
-// 7. Evaluasi AI Advisor (Tab Analisis)
+// 8. Evaluasi AI Advisor (Menyesuaikan dengan Filter Periode)
 async function requestAiAudit() {
+  const currentList = getFilteredTransactions();
+  if (currentList.length === 0) return alert('Belum ada transaksi pada periode ini untuk dianalisis.');
+  
   const box = document.getElementById('ai-insight-box');
   const btn = document.getElementById('btn-audit');
-  if (window.transactions.length === 0) return alert('Belum ada data pengeluaran untuk dianalisis.');
-  
   btn.disabled = true;
-  box.textContent = '🧠 Sedang menganalisis pola pengeluaran Anda...';
+  box.textContent = '🧠 Sedang menganalisis data periode terpilih...';
   
-  const expList = window.transactions.filter(t => t.type === 'expense');
-  const incList = window.transactions.filter(t => t.type === 'income');
+  const expList = currentList.filter(t => t.type === 'expense');
+  const incList = currentList.filter(t => t.type === 'income');
   const totalExp = expList.reduce((s, t) => s + t.nominal, 0);
   const totalInc = incList.reduce((s, t) => s + t.nominal, 0);
 
@@ -228,7 +271,7 @@ async function requestAiAudit() {
   expList.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + t.nominal; });
 
   try {
-    const prompt = `Total Pemasukan: Rp ${totalInc}, Total Pengeluaran: Rp ${totalExp}, Breakdown: ${JSON.stringify(catTotals)}. Berikan evaluasi singkat: 1 kalimat kondisi keuangan, kategori paling boros, dan 2 tips konkret penghematan.`;
+    const prompt = `Periode Filter: ${window.currentPeriod.toUpperCase()}. Total Pemasukan: Rp ${totalInc}, Total Pengeluaran: Rp ${totalExp}, Breakdown: ${JSON.stringify(catTotals)}. Berikan evaluasi singkat: 1 kalimat kondisi keuangan periode ini, kategori pengeluaran terbesar, dan 2 saran penghematan.`;
     const reply = await callOpenRouter([
       { role: 'system', content: 'Anda konsultan keuangan pribadi profesional. Berikan jawaban padat dan terstruktur.' },
       { role: 'user', content: prompt }
@@ -241,10 +284,12 @@ async function requestAiAudit() {
   }
 }
 
-// 8. Render UI Dashboard
+// 9. Render Metrik Berdasarkan Periode Aktif
 function renderSummary() {
+  const currentList = getFilteredTransactions();
   let inc = 0, exp = 0;
-  window.transactions.forEach(t => { 
+  
+  currentList.forEach(t => { 
     if (t.type === 'income') inc += t.nominal; 
     else exp += t.nominal; 
   });
@@ -254,14 +299,18 @@ function renderSummary() {
   document.getElementById('stat-expense').textContent = `Rp ${exp.toLocaleString('id-ID')}`;
 }
 
+// 10. Render Tabel Riwayat Berdasarkan Periode Aktif
 function renderHistoryTable() {
   const tb = document.getElementById('history-table-body');
   if (!tb) return;
-  if (window.transactions.length === 0) { 
-    tb.innerHTML = '<tr><td class="p-6 text-center text-slate-500">Belum ada transaksi</td></tr>'; 
+  const currentList = getFilteredTransactions();
+
+  if (currentList.length === 0) { 
+    tb.innerHTML = '<tr><td class="p-6 text-center text-slate-500">Belum ada transaksi pada periode ini</td></tr>'; 
     return; 
   }
-  tb.innerHTML = window.transactions.map((t, i) => `
+
+  tb.innerHTML = currentList.map(t => `
     <tr class="border-b border-slate-800/60 hover:bg-slate-800/30 transition">
       <td class="p-2.5 text-slate-400 whitespace-nowrap">${t.date}</td>
       <td class="p-2.5 font-bold text-slate-200">
@@ -280,7 +329,7 @@ function deleteTransaction(id) {
   renderAll();
 }
 
-// 9. Perbaikan Indikator Tab Aktif
+// 11. Navigasi Tab
 function switchTab(selectedTab) {
   const tabs = ['chat', 'charts', 'history'];
   
@@ -303,7 +352,7 @@ function switchTab(selectedTab) {
   }
 }
 
-// 10. Chart.js Distribusi Kategori
+// 12. Diagram Lingkaran Berdasarkan Periode Aktif
 function initChart() {
   const ctx = document.getElementById('categoryChart');
   if (!ctx) return;
@@ -331,10 +380,13 @@ function initChart() {
 
 function updateChartData() {
   if (!window.chartInstance) return; 
+  const currentList = getFilteredTransactions();
   const m = {}; 
-  window.transactions.filter(t => t.type === 'expense').forEach(t => { 
+  
+  currentList.filter(t => t.type === 'expense').forEach(t => { 
     m[t.category] = (m[t.category] || 0) + t.nominal; 
   });
+
   const d = Object.values(m); 
   const emptyEl = document.getElementById('chart-empty-msg');
   const chartEl = document.getElementById('categoryChart');
@@ -351,7 +403,7 @@ function updateChartData() {
   }
 }
 
-// 11. Scan Struk Kasir
+// 13. Scan Struk Kasir
 async function handleReceiptUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -414,14 +466,18 @@ async function handleReceiptUpload(event) {
   };
 }
 
+// 14. Ekspor CSV (Sesuai Periode yang Sedang Dipilih)
 function exportToCSV() {
-  if (!window.transactions.length) return alert('Tidak ada transaksi untuk diunduh!');
+  const currentList = getFilteredTransactions();
+  if (!currentList.length) return alert('Tidak ada transaksi pada periode ini untuk diunduh!');
+  
   let csv = 'Tanggal,Deskripsi,Tipe,Kategori,Nominal\n';
-  window.transactions.forEach(t => { 
+  currentList.forEach(t => { 
     csv += `"${t.date}","${t.description}","${t.type}","${t.category}","${t.nominal}"\n`; 
   });
+  
   const a = document.createElement('a');
   a.href = window.URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-  a.download = `laporan_keuangan_${Date.now()}.csv`;
+  a.download = `laporan_keuangan_${window.currentPeriod}_${Date.now()}.csv`;
   a.click();
 }

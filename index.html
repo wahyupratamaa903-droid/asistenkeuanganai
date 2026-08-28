@@ -70,6 +70,14 @@
         </button>
       </div>
 
+      <!-- FILTER PERIODE TRANSAKSI -->
+      <div class="flex items-center justify-between gap-1.5 bg-slate-950/90 border border-slate-800 p-1 rounded-xl font-mono text-[10px]">
+        <button onclick="setPeriod('today')" id="period-btn-today" class="flex-1 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition text-center">Hari Ini</button>
+        <button onclick="setPeriod('week')" id="period-btn-week" class="flex-1 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition text-center">Minggu Ini</button>
+        <button onclick="setPeriod('month')" id="period-btn-month" class="flex-1 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition text-center">Bulan Ini</button>
+        <button onclick="setPeriod('all')" id="period-btn-all" class="flex-1 py-1 rounded-lg text-emerald-400 bg-emerald-950/70 border border-emerald-800/80 font-bold transition text-center">Semua</button>
+      </div>
+
       <!-- KARTU SALDO CASH -->
       <div class="bg-gradient-to-r from-emerald-950 to-slate-900 border border-emerald-800/50 rounded-xl p-3 flex items-center justify-between">
         <div>
@@ -109,7 +117,7 @@
 
     <!-- TAB 1: CATAT -->
     <section id="tab-chat" class="flex-1 flex flex-col justify-between w-full max-w-2xl mx-auto">
-      <div id="chat-box" class="flex-1 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 space-y-3 overflow-y-auto max-h-[48vh] shadow-inner">
+      <div id="chat-box" class="flex-1 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 space-y-3 overflow-y-auto max-h-[46vh] shadow-inner">
         <div class="flex items-start gap-2.5">
           <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
             <i class="fas fa-robot"></i>
@@ -142,7 +150,7 @@
       </div>
     </section>
 
-    <!-- TAB 2: ANALISIS (DISTRIBUSI KATEGORI & AI ADVISOR) -->
+    <!-- TAB 2: ANALISIS -->
     <section id="tab-charts" class="hidden flex-1 w-full max-w-2xl mx-auto space-y-3">
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
         <h2 class="font-bold text-xs text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -152,7 +160,7 @@
           <canvas id="categoryChart"></canvas>
         </div>
         <div id="chart-empty-msg" class="text-center text-slate-500 py-6 text-xs hidden">
-          Belum ada catatan pengeluaran.
+          Belum ada catatan pengeluaran pada periode ini.
         </div>
       </div>
       
@@ -166,7 +174,7 @@
           </button>
         </div>
         <div id="ai-insight-box" class="text-xs text-slate-300 leading-relaxed bg-slate-950/60 border border-slate-800 rounded-xl p-3 whitespace-pre-wrap min-h-[60px]">
-          Klik tombol "Analisis Data" di atas untuk meminta AI mengevaluasi pola pengeluaran Anda.
+          Klik tombol "Analisis Data" di atas untuk meminta evaluasi AI terhadap data periode yang dipilih.
         </div>
       </div>
     </section>
@@ -176,7 +184,7 @@
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl flex items-center justify-between">
         <h2 class="font-bold text-xs text-slate-100">Riwayat Transaksi</h2>
         <button onclick="exportToCSV()" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold px-3 py-1.5 rounded-lg text-[10px] transition">
-          <i class="fas fa-file-csv mr-1"></i> Unduh
+          <i class="fas fa-file-csv mr-1"></i> Unduh CSV
         </button>
       </div>
       <div class="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
