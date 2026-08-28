@@ -111,7 +111,7 @@
         </div>
       </div>
 
-      <!-- TAB NAVIGASI (4 TAB: Catat, Analisis, Impian, Riwayat) -->
+      <!-- TAB NAVIGASI (4 TAB) -->
       <div class="grid grid-cols-4 gap-1 pt-1">
         <button onclick="switchTab('chat')" id="tab-btn-chat" class="py-2 font-bold rounded-xl text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 transition flex items-center justify-center gap-1">
           <i class="fas fa-microphone"></i> Catat
@@ -128,7 +128,7 @@
       </div>
     </header>
 
-    <!-- TAB 1: CATAT -->
+    <!-- TAB 1: CATAT (INPUT SUARA, STRUK FISIK, & RESI DIGITAL E-WALLET/QRIS) -->
     <section id="tab-chat" class="flex-1 flex flex-col justify-between w-full max-w-2xl mx-auto">
       <div id="chat-box" class="flex-1 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 space-y-3 overflow-y-auto max-h-[46vh] shadow-inner">
         <div class="flex items-start gap-2.5">
@@ -136,25 +136,35 @@
             <i class="fas fa-robot"></i>
           </div>
           <div class="bg-slate-800/90 border border-slate-700 p-3 rounded-2xl rounded-tl-none text-slate-200 text-xs leading-relaxed max-w-[85%] shadow-sm">
-            Halo! Ketik transaksi atau gunakan tombol mic & kamera:
+            Halo! Catat transaksi santai atau gunakan tombol cepat di bawah:
             <div class="mt-2 space-y-1 font-mono text-[11px] text-emerald-300">
-              <div>• <i>"parkir 5k"</i> atau <i>"beli bensin 30rb"</i></div>
-              <div>• <i>"setor orang tua 1 juta"</i></div>
-              <div>• <i>"gaji masuk 5 juta"</i></div>
+              <div>• <b>Mic:</b> Bicara nominal (misal: <i>"bensin 30rb"</i>)</div>
+              <div>• <b>Kamera:</b> Foto langsung struk kasir fisik</div>
+              <div>• <b>Resi:</b> Unggah screenshot DANA / QRIS / Transfer</div>
             </div>
           </div>
         </div>
       </div>
 
       <div class="mt-3 space-y-2">
-        <input type="file" id="receipt-file-input" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
+        <!-- Input File Kamera (Struk Fisik) -->
+        <input type="file" id="receipt-file-input" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event, 'physical')">
+        <!-- Input File Galeri (Screenshot E-Wallet/QRIS/M-Banking) -->
+        <input type="file" id="screenshot-file-input" accept="image/*" class="hidden" onchange="handleReceiptUpload(event, 'digital')">
+
         <form onsubmit="handleUserInput(event)" class="flex items-center gap-1.5">
-          <button type="button" id="btn-voice" onclick="toggleVoiceRecording()" class="bg-slate-900 border border-slate-700 w-10 h-10 rounded-xl text-slate-300 flex items-center justify-center flex-shrink-0">
+          <button type="button" id="btn-voice" onclick="toggleVoiceRecording()" class="bg-slate-900 border border-slate-700 w-10 h-10 rounded-xl text-slate-300 flex items-center justify-center flex-shrink-0" title="Input Suara">
             <i class="fas fa-microphone"></i>
           </button>
-          <button type="button" onclick="document.getElementById('receipt-file-input').click()" class="bg-slate-900 border border-slate-700 text-cyan-400 w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0">
+          
+          <button type="button" onclick="document.getElementById('receipt-file-input').click()" class="bg-slate-900 border border-slate-700 text-cyan-400 w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" title="Foto Struk Fisik Kasir">
             <i class="fas fa-camera"></i>
           </button>
+
+          <button type="button" onclick="document.getElementById('screenshot-file-input').click()" class="bg-slate-900 border border-slate-700 text-purple-400 w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" title="Upload Screenshot Resi E-Wallet / QRIS / Transfer">
+            <i class="fas fa-receipt"></i>
+          </button>
+
           <input type="text" id="chat-input" placeholder="Ketik pengeluaran (cth: parkir 5k)..." required class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none">
           <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 font-bold px-4 py-2 rounded-xl h-10 text-white flex items-center justify-center flex-shrink-0">
             <i class="fas fa-paper-plane"></i>

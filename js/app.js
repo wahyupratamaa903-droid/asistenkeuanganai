@@ -5,7 +5,6 @@ window.recognition = null;
 window.currentPeriod = 'all';
 window.goals = JSON.parse(localStorage.getItem('finai_goals_v1') || '[]');
 
-// Registrasi PWA Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
@@ -135,8 +134,8 @@ function recordTransaction(item) {
     timestamp: item.timestamp || now,
     date: item.date || new Date(now).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }), 
     description: item.description, 
-    type: item.type, 
-    category: item.category,
+    type: item.type || 'expense', 
+    category: item.category || 'Lainnya',
     nominal: parseFloat(item.nominal)
   };
   window.transactions.unshift(trx); 
@@ -348,7 +347,6 @@ function renderGoals() {
           </div>
         </div>
 
-        <!-- Progress Bar -->
         <div class="w-full bg-slate-950 rounded-full h-2.5 overflow-hidden border border-slate-800">
           <div class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: ${progressPct}%"></div>
         </div>
@@ -358,7 +356,6 @@ function renderGoals() {
           <span>Target: <b class="text-slate-200">Rp ${g.target.toLocaleString('id-ID')}</b></span>
         </div>
 
-        <!-- Alokasi Presisi Harian & Mingguan -->
         ${!isFinished ? `
           <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 grid grid-cols-2 gap-2 text-center font-mono">
             <div>
@@ -372,7 +369,6 @@ function renderGoals() {
           </div>
         ` : ''}
 
-        <!-- Tombol Setor Tabungan -->
         <div class="pt-1">
           <button onclick="depositToGoal(${g.id})" class="w-full bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 text-emerald-300 font-bold py-2 rounded-xl text-[10px] flex items-center justify-center gap-1.5 transition">
             <i class="fas fa-plus-circle"></i> Setor Tabungan dari Saldo
@@ -432,7 +428,6 @@ function depositToGoal(id) {
     goal.current += amount;
     localStorage.setItem('finai_goals_v1', JSON.stringify(window.goals));
     
-    // Otomatis catat sebagai pengeluaran alokasi tabungan
     recordTransaction({
       description: `Tabungan: ${goal.name}`,
       nominal: amount,
@@ -568,18 +563,33 @@ function updateChartData() {
   }
 }
 
-// 13. Scan Struk Kasir
-async function handleReceiptUpload(event) {
+// 13. Dual Engine OCR: Struk Kasir & Resi Digital (E-Wallet / QRIS / Transfer)
+async function handleReceiptUpload(event, mode = 'physical') {
   const file = event.target.files[0];
   if (!file) return;
+
   const loaderId = 'loader-' + Date.now();
-  appendChatMessage('assistant', '📷 Membaca total belanja struk dengan AI Vision...', loaderId);
+  const label = mode === 'digital' ? 'screenshot resi transfer / QRIS / E-Wallet...' : 'total belanja struk kasir...';
+  appendChatMessage('assistant', `📷 Membaca ${label}`, loaderId);
 
   const reader = new FileReader();
   reader.readAsDataURL(file);
   reader.onload = async (e) => {
     try {
       const base64Img = e.target.result;
+      
+      const promptText = mode === 'digital' 
+        ? `Anda adalah spesialis OCR pembaca screenshot bukti transaksi perbankan & E-Wallet Indonesia (DANA, GoPay, OVO, ShopeePay, QRIS, BCA Mobile, BRImo, Livin Mandiri).
+Tugas Anda:
+1. Temukan nama penerima uang, merchant, atau tujuan transaksi (misal: "QRIS Kopi Kenangan", "Transfer ke Budi", "DANA Topup PLN", "Shopee").
+2. Temukan NOMINAL AKHIR uang yang ditransfer/dibayar (hanya angka murni integer).
+3. Tentukan apakah ini 'expense' (uang keluar/transfer/bayar) atau 'income' (uang masuk/terima transfer).
+4. Tentukan kategori yang cocok: Makanan & Minuman / Transportasi / Tagihan & Utilitas / Belanja Harian / Hiburan & Santai / Keluarga & Transfer / Kesehatan.
+
+KEMBALIKAN HANYA FORMAT JSON:
+{"description": "Nama Penerima/Merchant", "nominal": 50000, "type": "expense", "category": "Keluarga & Transfer"}`
+        : `Ekstrak nama toko dan TOTAL AKHIR belanja dari foto struk fisik ini. Kembalikan format JSON: {"description": "Nama Toko", "nominal": 25000, "type": "expense", "category": "Belanja Harian"}`;
+
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -593,15 +603,17 @@ async function handleReceiptUpload(event) {
           messages: [{
             role: 'user',
             content: [
-              { type: 'text', text: 'Ekstrak nama toko dan TOTAL AKHIR belanja. Kembalikan format JSON: {"description": "Nama Toko / Barang", "nominal": 25000, "category": "Makanan & Minuman / Transportasi / Belanja Harian"}' },
+              { type: 'text', text: promptText },
               { type: 'image_url', image_url: { url: base64Img } }
             ]
           }]
         })
       });
+
       const data = await res.json();
       document.getElementById(loaderId)?.remove();
       const raw = data.choices?.[0]?.message?.content || '';
+      
       let detected = null;
       const jsonMatch = raw.match(/\{[\s\S]*?\}/);
       if (jsonMatch) {
@@ -609,22 +621,26 @@ async function handleReceiptUpload(event) {
           const parsed = JSON.parse(jsonMatch[0]);
           if (parsed.nominal || parsed.total) {
             detected = { 
-              description: parsed.description || 'Struk Belanja', 
+              description: parsed.description || (mode === 'digital' ? 'Transfer / QRIS' : 'Struk Belanja'), 
               nominal: parseFloat(parsed.nominal || parsed.total), 
-              category: parsed.category || 'Belanja Harian' 
+              type: parsed.type || 'expense',
+              category: parsed.category || (mode === 'digital' ? 'Keluarga & Transfer' : 'Belanja Harian')
             };
           }
         } catch(err){}
       }
+
       if (detected && detected.nominal > 0) {
-        const trx = recordTransaction({ description: detected.description, nominal: detected.nominal, type: 'expense', category: detected.category });
-        appendChatMessage('assistant', `🧾 **Struk Dicatat!**\n• **Item:** ${trx.description}\n• **Kategori:** ${trx.category}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}`);
+        const trx = recordTransaction(detected);
+        const typeLabel = trx.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+        const badge = mode === 'digital' ? '📱 Resi Digital' : '🧾 Struk Kasir';
+        appendChatMessage('assistant', `✅ **${badge} Terdeteksi!**\n• **Item:** ${trx.description}\n• **Kategori:** ${trx.category}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}`);
       } else {
-        appendChatMessage('assistant', '⚠️ Tidak dapat membaca angka total struk. Pastikan foto struk jelas.');
+        appendChatMessage('assistant', '⚠️ Gagal membaca nominal transaksi dari gambar. Pastikan teks pada screenshot atau struk terlihat jelas.');
       }
     } catch (err) {
       document.getElementById(loaderId)?.remove();
-      appendChatMessage('assistant', '⚠️ Gagal membaca struk: ' + err.message);
+      appendChatMessage('assistant', '⚠️ Gagal membaca gambar: ' + err.message);
     } finally {
       event.target.value = '';
     }
