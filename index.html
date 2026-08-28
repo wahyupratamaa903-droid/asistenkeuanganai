@@ -111,18 +111,18 @@
         </div>
       </div>
 
-      <!-- TAB NAVIGASI -->
+      <!-- TAB NAVIGASI (4 TAB: Catat, Analisis, Impian, Riwayat) -->
       <div class="grid grid-cols-4 gap-1 pt-1">
-        <button onclick="switchTab('chat')" id="tab-btn-chat" class="py-2 font-bold rounded-xl text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 transition">
+        <button onclick="switchTab('chat')" id="tab-btn-chat" class="py-2 font-bold rounded-xl text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 transition flex items-center justify-center gap-1">
           <i class="fas fa-microphone"></i> Catat
         </button>
-        <button onclick="switchTab('charts')" id="tab-btn-charts" class="py-2 font-bold rounded-xl text-[11px] text-slate-400 bg-slate-950 border border-slate-800 transition">
+        <button onclick="switchTab('charts')" id="tab-btn-charts" class="py-2 font-bold rounded-xl text-[11px] text-slate-400 bg-slate-950 border border-slate-800 transition flex items-center justify-center gap-1">
           <i class="fas fa-chart-pie"></i> Analisis
         </button>
-        <button onclick="switchTab('goals')" id="tab-btn-goals" class="py-2 font-bold rounded-xl text-[11px] text-slate-400 bg-slate-950 border border-slate-800 transition">
-          <i class="fas fa-piggy-bank"></i> Impian
+        <button onclick="switchTab('goals')" id="tab-btn-goals" class="py-2 font-bold rounded-xl text-[11px] text-slate-400 bg-slate-950 border border-slate-800 transition flex items-center justify-center gap-1">
+          <i class="fas fa-bullseye"></i> Impian
         </button>
-        <button onclick="switchTab('history')" id="tab-btn-history" class="py-2 font-bold rounded-xl text-[11px] text-slate-400 bg-slate-950 border border-slate-800 transition">
+        <button onclick="switchTab('history')" id="tab-btn-history" class="py-2 font-bold rounded-xl text-[11px] text-slate-400 bg-slate-950 border border-slate-800 transition flex items-center justify-center gap-1">
           <i class="fas fa-table-list"></i> Riwayat
         </button>
       </div>
@@ -136,7 +136,7 @@
             <i class="fas fa-robot"></i>
           </div>
           <div class="bg-slate-800/90 border border-slate-700 p-3 rounded-2xl rounded-tl-none text-slate-200 text-xs leading-relaxed max-w-[85%] shadow-sm">
-            Halo! Ketik santai atau gunakan tombol mic & kamera:
+            Halo! Ketik transaksi atau gunakan tombol mic & kamera:
             <div class="mt-2 space-y-1 font-mono text-[11px] text-emerald-300">
               <div>• <i>"parkir 5k"</i> atau <i>"beli bensin 30rb"</i></div>
               <div>• <i>"setor orang tua 1 juta"</i></div>
@@ -192,14 +192,14 @@
       </div>
     </section>
 
-    <!-- TAB 3: SINKING FUND & TABUNGAN IMPIAN PRESISI -->
+    <!-- TAB 3: IMPIAN (SINKING FUND PRESISI) -->
     <section id="tab-goals" class="hidden flex-1 w-full max-w-2xl mx-auto space-y-3">
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-xl flex items-center justify-between">
         <div>
           <h2 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
             <i class="fas fa-bullseye text-emerald-400"></i> Sinking Fund & Target Impian
           </h2>
-          <p class="text-[10px] text-slate-400">Kalkulator alokasi harian & mingguan otomatis</p>
+          <p class="text-[10px] text-slate-400">Alokasi tabungan harian & mingguan otomatis</p>
         </div>
         <button onclick="openGoalModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 transition">
           <i class="fas fa-plus"></i> Tambah Target

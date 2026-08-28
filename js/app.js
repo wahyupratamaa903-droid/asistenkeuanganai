@@ -502,10 +502,10 @@ function switchTab(selectedTab) {
     
     if (t === selectedTab) {
       section.classList.remove('hidden');
-      btn.className = 'py-2 font-bold rounded-xl text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 transition';
+      btn.className = 'py-2 font-bold rounded-xl text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 transition flex items-center justify-center gap-1';
     } else {
       section.classList.add('hidden');
-      btn.className = 'py-2 font-bold rounded-xl text-[11px] text-slate-400 bg-slate-950 border border-slate-800 transition';
+      btn.className = 'py-2 font-bold rounded-xl text-[11px] text-slate-400 bg-slate-950 border border-slate-800 transition flex items-center justify-center gap-1';
     }
   });
 
@@ -527,7 +527,7 @@ function initChart() {
       labels: [], 
       datasets: [{ 
         data: [], 
-        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f43f5e', '#64748b', '#14b8a6'], 
+        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f43f5e', '#64748b'], 
         borderWidth: 2, 
         borderColor: '#0f172a' 
       }] 
