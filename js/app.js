@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initSpeechRecognition();
 });
 
-// 1. Kompresi Gambar Otomatis via Canvas (Mencegah Payload Error)
+// 1. Kompresi Gambar Otomatis via Canvas
 function compressImage(file, maxDimension = 1024, quality = 0.8) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -54,7 +54,7 @@ function compressImage(file, maxDimension = 1024, quality = 0.8) {
   });
 }
 
-// 2. Pembersih Format Angka Nominal dari AI
+// 2. Pembersih Angka Nominal
 function cleanNominal(val) {
   if (typeof val === 'number') return val;
   if (!val) return 0;
@@ -278,16 +278,27 @@ function appendChatMessage(role, text, id = null) {
   box.scrollTop = box.scrollHeight;
 }
 
-// 9. Request AI dengan Multi-Model Fallback
-async function callOpenRouter(messages) {
-  const models = [
+// 9. Request AI dengan Pemisahan Jalur Khusus Vision vs Teks
+async function callOpenRouter(messages, isVision = false) {
+  // Model yang 100% mendukung input gambar (Vision)
+  const visionModels = [
     'google/gemini-2.0-flash-001',
-    'google/gemini-flash-1.5',
-    'meta-llama/llama-3.2-11b-vision-instruct',
+    'google/gemini-2.0-flash-lite-001',
+    'google/gemini-2.0-flash-exp:free',
+    'qwen/qwen-2.5-vl-7b-instruct',
+    'mistralai/pixtral-12b'
+  ];
+
+  // Model untuk teks percakapan dan AI Advisor
+  const textModels = [
+    'google/gemini-2.0-flash-001',
+    'google/gemini-2.0-flash-lite-001',
     'meta-llama/llama-3.3-70b-instruct'
   ];
 
+  const models = isVision ? visionModels : textModels;
   let lastError = null;
+
   for (const model of models) {
     try {
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -302,7 +313,7 @@ async function callOpenRouter(messages) {
       });
 
       const data = await res.json();
-      if (data.choices && data.choices[0]) {
+      if (data.choices && data.choices[0] && data.choices[0].message) {
         return data.choices[0].message.content;
       }
       if (data.error) {
@@ -322,7 +333,7 @@ async function askAiConversation(promptText) {
     const reply = await callOpenRouter([
       { role: 'system', content: 'Anda adalah FinAI, asisten keuangan pribadi yang ramah, ringkas, dan solutif.' },
       { role: 'user', content: promptText }
-    ]);
+    ], false);
     document.getElementById(loaderId)?.remove();
     appendChatMessage('assistant', reply);
   } catch (err) {
@@ -353,7 +364,7 @@ async function requestAiAudit() {
     const reply = await callOpenRouter([
       { role: 'system', content: 'Anda konsultan keuangan pribadi profesional. Berikan jawaban padat dan terstruktur.' },
       { role: 'user', content: prompt }
-    ]);
+    ], false);
     box.textContent = reply;
   } catch (err) {
     box.textContent = `⚠️ Analisis gagal: ${err.message}`;
@@ -637,7 +648,7 @@ function updateChartData() {
   }
 }
 
-// 15. DUAL-ENGINE OCR (KOMPRESI OTOMATIS + SANITASI ANGKA)
+// 15. DUAL-ENGINE OCR KHUSUS VISION (KOMPRESI + PARSER KETAT)
 async function handleReceiptUpload(event, mode = 'physical') {
   const file = event.target.files[0];
   if (!file) return;
@@ -647,11 +658,10 @@ async function handleReceiptUpload(event, mode = 'physical') {
   appendChatMessage('assistant', `📷 Membaca ${label}`, loaderId);
 
   try {
-    // Kompres gambar otomatis agar ringan (< 150KB)
     const base64Img = await compressImage(file, 1024, 0.8);
     
     const promptText = mode === 'digital' 
-      ? `Anda adalah OCR pembaca bukti transaksi / screenshot E-Wallet (DANA, GoPay, OVO, ShopeePay, QRIS, BCA, BRImo, Mandiri).
+      ? `Anda adalah OCR pembaca bukti transfer / QRIS / screenshot E-Wallet Indonesia (DANA, GoPay, OVO, ShopeePay, BCA, BRImo, Mandiri).
 1. Temukan nama penerima/merchant/toko tujuan.
 2. Temukan TOTAL NOMINAL uang transaksi (harus angka bulat).
 3. Tentukan type: 'expense' (keluar/transfer) atau 'income' (uang masuk/terima).
@@ -667,7 +677,7 @@ KEMBALIKAN HANYA JSON VALID:
         { type: 'text', text: promptText },
         { type: 'image_url', image_url: { url: base64Img } }
       ]
-    }]);
+    }], true); // isVision = true
 
     document.getElementById(loaderId)?.remove();
     
