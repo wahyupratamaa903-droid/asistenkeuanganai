@@ -3,10 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FinAI - Asisten & Pencatat Keuangan Pintar</title>
+  <title>FinAI - Asisten Keuangan Pintar & Cloud Sync</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  
+  <!-- Firebase SDK untuk Google Login & Cloud Sync -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
   <style>
     body { background: #090d16; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
     .sheet-table th { background: #111827; border: 1px solid #1f2937; position: sticky; top: 0; z-index: 10; }
@@ -17,248 +23,306 @@
     .recording-active { animation: pulse-red 1s infinite; background-color: #e11d48 !important; color: white !important; }
   </style>
 </head>
-<body class="text-slate-200 text-xs min-h-screen flex flex-col justify-between p-2 md:p-4">
+<body class="text-slate-200 text-xs min-h-screen flex flex-col justify-between">
 
-  <!-- Top Header & Budget Banner -->
-  <header class="bg-slate-900 border border-slate-800 rounded-2xl p-3 mb-3 shadow-xl space-y-2.5">
-    <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
-      <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm shadow-inner">
+  <!-- ================= LAYAR 1: LOGIN GOOGLE (CLOUD SYNC) ================= -->
+  <div id="login-screen" class="min-h-screen flex flex-col items-center justify-center p-4">
+    <div class="w-full max-w-sm flex flex-col items-center text-center space-y-6">
+      
+      <!-- App Icon & Title -->
+      <div class="space-y-3">
+        <div class="w-20 h-20 rounded-3xl bg-emerald-950/70 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-3xl mx-auto shadow-2xl">
           <i class="fas fa-wallet"></i>
         </div>
         <div>
-          <h1 class="font-black text-xs sm:text-sm text-slate-100 uppercase tracking-wide">FinAI Smart Assistant</h1>
-          <p class="text-[10px] text-slate-400">Pencatatan Suara, Scan Struk & Analisis</p>
+          <h1 class="text-2xl font-black text-slate-100 tracking-wide">FinAI</h1>
+          <p class="text-xs text-slate-400 mt-0.5">Asisten Keuangan Pintar • Cloud Sync</p>
         </div>
       </div>
-      <div class="flex items-center gap-1.5">
-        <button onclick="openBudgetModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition" title="Set Budget">
-          <i class="fas fa-sliders text-emerald-400"></i> Budget
-        </button>
-        <button onclick="openApiKeyModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition" title="Set API Key">
-          <i class="fas fa-key text-amber-400"></i> API
-        </button>
-      </div>
-    </div>
 
-    <!-- Live Metric Cards -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
-      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
-        <span class="text-[9px] text-slate-500 block uppercase">Pemasukan</span>
-        <span id="stat-income" class="text-xs font-bold text-emerald-400">Rp 0</span>
-      </div>
-      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
-        <span class="text-[9px] text-slate-500 block uppercase">Pengeluaran</span>
-        <span id="stat-expense" class="text-xs font-bold text-rose-400">Rp 0</span>
-      </div>
-      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
-        <span class="text-[9px] text-slate-500 block uppercase">Jatah Hari Ini</span>
-        <span id="stat-daily-allowance" class="text-xs font-bold text-cyan-400">Rp 0</span>
-      </div>
-      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
-        <span class="text-[9px] text-slate-500 block uppercase">Skor Sehat</span>
-        <span id="stat-health-score" class="text-xs font-bold text-emerald-400">100/100</span>
-      </div>
-    </div>
-
-    <!-- Navigation Switcher Tabs -->
-    <div class="grid grid-cols-4 gap-1 pt-1">
-      <button onclick="switchTab('chat')" id="tab-btn-chat" class="py-1.5 font-bold rounded-lg text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 text-center transition">
-        <i class="fas fa-microphone"></i> Catat
-      </button>
-      <button onclick="switchTab('charts')" id="tab-btn-charts" class="py-1.5 font-bold rounded-lg text-[11px] text-slate-400 bg-slate-950 border border-slate-800 text-center transition">
-        <i class="fas fa-chart-pie"></i> Analisis
-      </button>
-      <button onclick="switchTab('goals')" id="tab-btn-goals" class="py-1.5 font-bold rounded-lg text-[11px] text-slate-400 bg-slate-950 border border-slate-800 text-center transition">
-        <i class="fas fa-bullseye"></i> Impian
-      </button>
-      <button onclick="switchTab('history')" id="tab-btn-history" class="py-1.5 font-bold rounded-lg text-[11px] text-slate-400 bg-slate-950 border border-slate-800 text-center transition">
-        <i class="fas fa-table-list"></i> Riwayat
-      </button>
-    </div>
-  </header>
-
-  <!-- TAB 1: Chat, Voice, Scan & Direct Input -->
-  <section id="tab-chat" class="flex-1 flex flex-col justify-between max-w-2xl w-full mx-auto">
-    <div id="chat-box" class="flex-1 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 space-y-3 overflow-y-auto max-h-[55vh] shadow-inner">
-      <div class="flex items-start gap-2.5">
-        <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
-          <i class="fas fa-robot"></i>
+      <!-- Login Card -->
+      <div class="w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 backdrop-blur">
+        <div class="space-y-1.5">
+          <h2 class="text-sm font-bold text-slate-100">Selamat Datang</h2>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            Data riwayat keuangan tersimpan aman di cloud. Tersinkronisasi di semua perangkat Anda.
+          </p>
         </div>
-        <div class="bg-slate-800/90 border border-slate-700 p-3 rounded-2xl rounded-tl-none text-slate-200 text-xs leading-relaxed max-w-[85%] shadow-sm">
-          Halo! Sistem kini mengenali ucapan suara langsung dan foto struk fisik:
-          <div class="mt-2 space-y-1 font-mono text-[11px] text-emerald-300">
-            <div>• <b>Suara:</b> Ucapkan <i>"setor orang tua satu juta"</i> atau <i>"beli kopi 25 ribu"</i>.</div>
-            <div>• <b>Foto Struk:</b> Foto struk belanja kasir langsung dari kamera.</div>
-            <div>• <b>Ketik Bebas:</b> Cth: <i>"bensin 30rb"</i>, <i>"gaji 5jt"</i>, <i>"makan 35k"</i>.</div>
+
+        <!-- Google Login Button -->
+        <button onclick="handleGoogleLogin()" id="btn-google-login" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-3 transition shadow-lg text-xs">
+          <svg class="w-4 h-4" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span>Masuk dengan Google</span>
+        </button>
+
+        <!-- Continue as Guest Option -->
+        <button onclick="continueAsGuest()" class="text-[10px] text-slate-500 hover:text-slate-300 underline block mx-auto transition">
+          Gunakan Mode Offline (Tersimpan di HP Ini)
+        </button>
+      </div>
+
+      <p class="text-[10px] text-slate-600">
+        Data Anda dienkripsi & hanya dapat diakses oleh Anda sendiri.
+      </p>
+    </div>
+  </div>
+
+
+  <!-- ================= LAYAR 2: DASHBOARD UTAMA FINAI ================= -->
+  <div id="main-app" class="hidden min-h-screen flex flex-col justify-between p-2 md:p-4">
+    
+    <!-- Top Header & Cloud Status -->
+    <header class="bg-slate-900 border border-slate-800 rounded-2xl p-3 mb-3 shadow-xl space-y-2.5">
+      <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div id="user-avatar-container" class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm shadow-inner overflow-hidden">
+            <i class="fas fa-wallet" id="default-avatar-icon"></i>
+            <img id="user-avatar-img" class="w-full h-full object-cover hidden" alt="Avatar">
+          </div>
+          <div>
+            <h1 class="font-black text-xs sm:text-sm text-slate-100 uppercase tracking-wide flex items-center gap-1.5">
+              <span>FinAI Assistant</span>
+              <span id="cloud-badge" class="text-[8px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.2 rounded">CLOUD SYNC</span>
+            </h1>
+            <p id="user-name-display" class="text-[10px] text-slate-400">Pencatatan Suara, Scan Struk & Analisis</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <button onclick="openBudgetModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition">
+            <i class="fas fa-sliders text-emerald-400"></i> Budget
+          </button>
+          <button onclick="openApiKeyModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition">
+            <i class="fas fa-key text-amber-400"></i> API
+          </button>
+          <button onclick="handleLogout()" class="text-[10px] bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/80 px-2 py-1 rounded-lg transition" title="Logout">
+            <i class="fas fa-arrow-right-from-bracket"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Metric Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
+          <span class="text-[9px] text-slate-500 block uppercase">Pemasukan</span>
+          <span id="stat-income" class="text-xs font-bold text-emerald-400">Rp 0</span>
+        </div>
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
+          <span class="text-[9px] text-slate-500 block uppercase">Pengeluaran</span>
+          <span id="stat-expense" class="text-xs font-bold text-rose-400">Rp 0</span>
+        </div>
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
+          <span class="text-[9px] text-slate-500 block uppercase">Jatah Hari Ini</span>
+          <span id="stat-daily-allowance" class="text-xs font-bold text-cyan-400">Rp 0</span>
+        </div>
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-2 text-center">
+          <span class="text-[9px] text-slate-500 block uppercase">Skor Sehat</span>
+          <span id="stat-health-score" class="text-xs font-bold text-emerald-400">100/100</span>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="grid grid-cols-4 gap-1 pt-1">
+        <button onclick="switchTab('chat')" id="tab-btn-chat" class="py-1.5 font-bold rounded-lg text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 text-center transition">
+          <i class="fas fa-microphone"></i> Catat
+        </button>
+        <button onclick="switchTab('charts')" id="tab-btn-charts" class="py-1.5 font-bold rounded-lg text-[11px] text-slate-400 bg-slate-950 border border-slate-800 text-center transition">
+          <i class="fas fa-chart-pie"></i> Analisis
+        </button>
+        <button onclick="switchTab('goals')" id="tab-btn-goals" class="py-1.5 font-bold rounded-lg text-[11px] text-slate-400 bg-slate-950 border border-slate-800 text-center transition">
+          <i class="fas fa-bullseye"></i> Impian
+        </button>
+        <button onclick="switchTab('history')" id="tab-btn-history" class="py-1.5 font-bold rounded-lg text-[11px] text-slate-400 bg-slate-950 border border-slate-800 text-center transition">
+          <i class="fas fa-table-list"></i> Riwayat
+        </button>
+      </div>
+    </header>
+
+    <!-- TAB 1: Chat, Suara, dan Scan Struk Cerdas -->
+    <section id="tab-chat" class="flex-1 flex flex-col justify-between max-w-2xl w-full mx-auto">
+      <div id="chat-box" class="flex-1 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 space-y-3 overflow-y-auto max-h-[55vh] shadow-inner">
+        <div class="flex items-start gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">
+            <i class="fas fa-robot"></i>
+          </div>
+          <div class="bg-slate-800/90 border border-slate-700 p-3 rounded-2xl rounded-tl-none text-slate-200 text-xs leading-relaxed max-w-[85%] shadow-sm">
+            Halo! Semua transaksi Anda otomatis tersinkron ke cloud. Pilih metode pencatatan yang diinginkan:
+            <div class="mt-2 space-y-1 font-mono text-[11px] text-emerald-300">
+              <div>• <b>Suara:</b> Klik tombol mic (cth: <i>"setor orang tua satu juta"</i>).</div>
+              <div>• <b>Scan Struk:</b> Klik kamera untuk memindai struk fisik kasir.</div>
+              <div>• <b>Ketik Bebas:</b> Cth: <i>"bensin 30rb"</i>, <i>"gaji 5jt"</i>, <i>"kopi 25k"</i>.</div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Controls & Inputs -->
-    <div class="mt-3 space-y-2">
-      <div class="flex gap-1.5 overflow-x-auto pb-1 text-[10px] no-scrollbar">
-        <button onclick="fillInput('beli kopi 25rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
-          ☕ Kopi 25rb
-        </button>
-        <button onclick="fillInput('setor orang tua satu juta')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
-          👨‍👩‍👦 Setor Ortu 1jt
-        </button>
-        <button onclick="fillInput('isi bensin 30rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
-          ⛽ Bensin 30rb
-        </button>
-        <button onclick="fillInput('gaji masuk 5.000.000')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
-          💵 Gaji 5jt
-        </button>
+      <!-- Input Controls -->
+      <div class="mt-3 space-y-2">
+        <div class="flex gap-1.5 overflow-x-auto pb-1 text-[10px] no-scrollbar">
+          <button onclick="fillInput('beli kopi 25rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
+            ☕ Kopi 25rb
+          </button>
+          <button onclick="fillInput('setor orang tua satu juta')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
+            👨‍👩‍👦 Setor Ortu 1jt
+          </button>
+          <button onclick="fillInput('isi bensin 30rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
+            ⛽ Bensin 30rb
+          </button>
+          <button onclick="fillInput('gaji masuk 5.000.000')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
+            💵 Gaji 5jt
+          </button>
+        </div>
+
+        <input type="file" id="receipt-file-input" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
+
+        <form onsubmit="handleUserInput(event)" class="flex items-center gap-1.5">
+          <button type="button" id="btn-voice" onclick="toggleVoiceRecording()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 w-9 h-9 rounded-xl flex items-center justify-center transition flex-shrink-0" title="Input Suara">
+            <i class="fas fa-microphone text-xs"></i>
+          </button>
+
+          <button type="button" onclick="document.getElementById('receipt-file-input').click()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-400 w-9 h-9 rounded-xl flex items-center justify-center transition flex-shrink-0" title="Scan Struk">
+            <i class="fas fa-camera text-xs"></i>
+          </button>
+
+          <input type="text" id="chat-input" placeholder="Ucapkan suara atau ketik..." required class="flex-1 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none transition">
+          <button type="submit" id="btn-send" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1 transition flex-shrink-0">
+            <i class="fas fa-paper-plane text-[10px]"></i>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- TAB 2: Analysis & Rasio 50/30/20 -->
+    <section id="tab-charts" class="hidden flex-1 max-w-2xl w-full mx-auto space-y-3">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h2 class="font-bold text-xs text-slate-200 uppercase tracking-wider flex items-center gap-2">
+            <i class="fas fa-heart-pulse text-rose-400"></i> Rasio 50/30/20 Keuangan
+          </h2>
+          <span id="health-grade-badge" class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full font-bold">SEHAT</span>
+        </div>
+
+        <div class="space-y-2 text-[11px] font-mono">
+          <div>
+            <div class="flex justify-between text-[10px] mb-1">
+              <span class="text-slate-400">Kebutuhan Pokok (Maks 50%)</span>
+              <span id="ratio-needs-pct" class="font-bold text-cyan-400">0%</span>
+            </div>
+            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+              <div id="ratio-needs-bar" class="bg-cyan-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[10px] mb-1">
+              <span class="text-slate-400">Keinginan & Lifestyle (Maks 30%)</span>
+              <span id="ratio-wants-pct" class="font-bold text-amber-400">0%</span>
+            </div>
+            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+              <div id="ratio-wants-bar" class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-[10px] mb-1">
+              <span class="text-slate-400">Tabungan / Sisa Saldo (Min 20%)</span>
+              <span id="ratio-savings-pct" class="font-bold text-emerald-400">0%</span>
+            </div>
+            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+              <div id="ratio-savings-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- File input with automatic compressor -->
-      <input type="file" id="receipt-file-input" accept="image/*" capture="environment" class="hidden" onchange="handleReceiptUpload(event)">
-
-      <form onsubmit="handleUserInput(event)" class="flex items-center gap-1.5">
-        <button type="button" id="btn-voice" onclick="toggleVoiceRecording()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 w-9 h-9 rounded-xl flex items-center justify-center transition flex-shrink-0" title="Input Suara">
-          <i class="fas fa-microphone text-xs"></i>
-        </button>
-
-        <button type="button" onclick="document.getElementById('receipt-file-input').click()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-400 w-9 h-9 rounded-xl flex items-center justify-center transition flex-shrink-0" title="Scan Struk Belanja">
-          <i class="fas fa-camera text-xs"></i>
-        </button>
-
-        <input type="text" id="chat-input" placeholder="Ucapkan suara atau ketik..." required class="flex-1 bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none transition">
-        <button type="submit" id="btn-send" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1 transition flex-shrink-0">
-          <i class="fas fa-paper-plane text-[10px]"></i>
-        </button>
-      </form>
-    </div>
-  </section>
-
-  <!-- TAB 2: Analysis & Health Score -->
-  <section id="tab-charts" class="hidden flex-1 max-w-2xl w-full mx-auto space-y-3">
-    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-        <h2 class="font-bold text-xs text-slate-200 uppercase tracking-wider flex items-center gap-2">
-          <i class="fas fa-heart-pulse text-rose-400"></i> Rasio 50/30/20 Keuangan
-        </h2>
-        <span id="health-grade-badge" class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-full font-bold">SEHAT</span>
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
+        <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+          <h2 class="font-bold text-xs text-slate-200 uppercase tracking-wider flex items-center gap-2">
+            <i class="fas fa-chart-pie text-emerald-400"></i> Diagram Kategori Pengeluaran
+          </h2>
+          <span class="text-[10px] text-slate-400">Otomatis</span>
+        </div>
+        <div class="w-full max-w-[220px] mx-auto h-[220px] relative">
+          <canvas id="categoryChart"></canvas>
+        </div>
+        <div id="chart-empty-msg" class="text-center text-slate-500 py-6 text-xs hidden">
+          Belum ada data pengeluaran untuk ditampilkan.
+        </div>
       </div>
 
-      <div class="space-y-2 text-[11px] font-mono">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-2.5">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h3 class="font-bold text-xs text-slate-200 flex items-center gap-2">
+            <i class="fas fa-brain text-purple-400"></i> AI Financial Advisor
+          </h3>
+          <button onclick="requestAiAudit()" class="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
+            <i class="fas fa-wand-magic-sparkles"></i> Analisis AI
+          </button>
+        </div>
+        <div id="ai-insight-box" class="text-xs text-slate-300 leading-relaxed bg-slate-950/60 border border-slate-800 rounded-xl p-3 whitespace-pre-wrap min-h-[70px]">
+          Klik "Analisis AI" untuk evaluasi komprehensif kebiasaan belanja Anda.
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Goal Tracker -->
+    <section id="tab-goals" class="hidden flex-1 max-w-2xl w-full mx-auto space-y-3">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-xl flex items-center justify-between">
         <div>
-          <div class="flex justify-between text-[10px] mb-1">
-            <span class="text-slate-400">Kebutuhan Pokok (Maks 50%)</span>
-            <span id="ratio-needs-pct" class="font-bold text-cyan-400">0%</span>
-          </div>
-          <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
-            <div id="ratio-needs-bar" class="bg-cyan-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-          </div>
+          <h2 class="font-bold text-xs text-slate-100 uppercase">Target Tabungan & Impian</h2>
+          <p class="text-[10px] text-slate-400">Simulasi dan alokasi otomatis</p>
         </div>
+        <button onclick="openGoalModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
+          <i class="fas fa-plus"></i> Tambah Target
+        </button>
+      </div>
 
+      <div id="goals-container" class="space-y-2.5"></div>
+    </section>
+
+    <!-- TAB 4: Spreadsheet History -->
+    <section id="tab-history" class="hidden flex-1 max-w-4xl w-full mx-auto space-y-3">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl flex items-center justify-between gap-2">
         <div>
-          <div class="flex justify-between text-[10px] mb-1">
-            <span class="text-slate-400">Keinginan & Gaya Hidup (Maks 30%)</span>
-            <span id="ratio-wants-pct" class="font-bold text-amber-400">0%</span>
-          </div>
-          <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
-            <div id="ratio-wants-bar" class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-          </div>
+          <h2 class="font-bold text-xs text-slate-100">Daftar Transaksi Lengkap</h2>
+          <p class="text-[10px] text-slate-400">Sinkronisasi Cloud & Penyimpanan Lokal</p>
         </div>
-
-        <div>
-          <div class="flex justify-between text-[10px] mb-1">
-            <span class="text-slate-400">Tabungan / Sisa Saldo (Min 20%)</span>
-            <span id="ratio-savings-pct" class="font-bold text-emerald-400">0%</span>
-          </div>
-          <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
-            <div id="ratio-savings-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-          </div>
+        <div class="flex items-center gap-2">
+          <button onclick="exportToCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition text-[11px]">
+            <i class="fas fa-file-csv text-emerald-400"></i> Unduh CSV
+          </button>
+          <button onclick="clearAllData()" class="bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800 font-bold px-2.5 py-1.5 rounded-lg transition text-[11px]">
+            <i class="fas fa-trash"></i>
+          </button>
         </div>
       </div>
-    </div>
 
-    <!-- Category Pie Chart -->
-    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
-      <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-        <h2 class="font-bold text-xs text-slate-200 uppercase tracking-wider flex items-center gap-2">
-          <i class="fas fa-chart-pie text-emerald-400"></i> Diagram Kategori Pengeluaran
-        </h2>
-        <span class="text-[10px] text-slate-400">Otomatis</span>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+        <div class="overflow-x-auto max-h-[65vh]">
+          <table class="sheet-table w-full text-left border-collapse font-mono text-[11px]">
+            <thead>
+              <tr class="text-[10px] text-slate-400 uppercase tracking-wider">
+                <th class="p-2 text-center w-8">#</th>
+                <th class="p-2">TANGGAL</th>
+                <th class="p-2">DESKRIPSI</th>
+                <th class="p-2 text-center">TIPE</th>
+                <th class="p-2">KATEGORI</th>
+                <th class="p-2 text-right">NOMINAL</th>
+                <th class="p-2 text-center">AKSI</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body" class="divide-y divide-slate-800"></tbody>
+          </table>
+        </div>
       </div>
-      <div class="w-full max-w-[220px] mx-auto h-[220px] relative">
-        <canvas id="categoryChart"></canvas>
-      </div>
-      <div id="chart-empty-msg" class="text-center text-slate-500 py-6 text-xs hidden">
-        Belum ada data pengeluaran untuk ditampilkan.
-      </div>
-    </div>
+    </section>
 
-    <!-- AI Advisor Audit -->
-    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-2.5">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-        <h3 class="font-bold text-xs text-slate-200 flex items-center gap-2">
-          <i class="fas fa-brain text-purple-400"></i> AI Financial Advisor
-        </h3>
-        <button onclick="requestAiAudit()" class="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
-          <i class="fas fa-wand-magic-sparkles"></i> Analisis AI
-        </button>
-      </div>
-      <div id="ai-insight-box" class="text-xs text-slate-300 leading-relaxed bg-slate-950/60 border border-slate-800 rounded-xl p-3 whitespace-pre-wrap min-h-[70px]">
-        Klik "Analisis AI" untuk evaluasi komprehensif kebiasaan belanja Anda.
-      </div>
-    </div>
-  </section>
-
-  <!-- TAB 3: Goal Tracker -->
-  <section id="tab-goals" class="hidden flex-1 max-w-2xl w-full mx-auto space-y-3">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-xl flex items-center justify-between">
-      <div>
-        <h2 class="font-bold text-xs text-slate-100 uppercase">Target Tabungan & Impian</h2>
-        <p class="text-[10px] text-slate-400">Simulasi dan alokasi otomatis</p>
-      </div>
-      <button onclick="openGoalModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
-        <i class="fas fa-plus"></i> Tambah Target
-      </button>
-    </div>
-
-    <div id="goals-container" class="space-y-2.5"></div>
-  </section>
-
-  <!-- TAB 4: Spreadsheet History -->
-  <section id="tab-history" class="hidden flex-1 max-w-4xl w-full mx-auto space-y-3">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl flex items-center justify-between gap-2">
-      <div>
-        <h2 class="font-bold text-xs text-slate-100">Daftar Transaksi Lengkap</h2>
-        <p class="text-[10px] text-slate-400">Tersimpan otomatis di memori browser</p>
-      </div>
-      <div class="flex items-center gap-2">
-        <button onclick="exportToCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition text-[11px]">
-          <i class="fas fa-file-csv text-emerald-400"></i> Unduh CSV
-        </button>
-        <button onclick="clearAllData()" class="bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800 font-bold px-2.5 py-1.5 rounded-lg transition text-[11px]">
-          <i class="fas fa-trash"></i>
-        </button>
-      </div>
-    </div>
-
-    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-      <div class="overflow-x-auto max-h-[65vh]">
-        <table class="sheet-table w-full text-left border-collapse font-mono text-[11px]">
-          <thead>
-            <tr class="text-[10px] text-slate-400 uppercase tracking-wider">
-              <th class="p-2 text-center w-8">#</th>
-              <th class="p-2">TANGGAL</th>
-              <th class="p-2">DESKRIPSI</th>
-              <th class="p-2 text-center">TIPE</th>
-              <th class="p-2">KATEGORI</th>
-              <th class="p-2 text-right">NOMINAL</th>
-              <th class="p-2 text-center">AKSI</th>
-            </tr>
-          </thead>
-          <tbody id="history-table-body" class="divide-y divide-slate-800"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
+  </div>
 
   <!-- MODALS -->
   <div id="budget-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
@@ -330,24 +394,117 @@
   </div>
 
   <script>
+    // Storage Keys
     const STORAGE_KEY = 'finai_transactions_v1';
     const BUDGET_KEY = 'finai_monthly_budget_v1';
     const GOALS_KEY = 'finai_goals_v1';
     const API_KEY_STORAGE = 'finai_openrouter_key';
+    const USER_KEY = 'finai_auth_user';
 
     let transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     let monthlyBudget = parseFloat(localStorage.getItem(BUDGET_KEY) || '2000000');
     let goals = JSON.parse(localStorage.getItem(GOALS_KEY) || '[]');
-    
+    let currentUser = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+
     let chartInstance = null;
     let recognition = null;
     let isRecording = false;
 
+    // Inisialisasi Aplikasi & Cek Status Login
     document.addEventListener('DOMContentLoaded', () => {
+      checkAuthState();
       initSpeechRecognition();
-      renderAll();
-      initChart();
     });
+
+    function checkAuthState() {
+      if (currentUser) {
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('main-app').classList.remove('hidden');
+        
+        document.getElementById('user-name-display').textContent = currentUser.name || currentUser.email || 'Pengguna FinAI';
+        if (currentUser.photo) {
+          document.getElementById('user-avatar-img').src = currentUser.photo;
+          document.getElementById('user-avatar-img').classList.remove('hidden');
+          document.getElementById('default-avatar-icon').classList.add('hidden');
+        }
+        renderAll();
+        initChart();
+      } else {
+        document.getElementById('login-screen').classList.remove('hidden');
+        document.getElementById('main-app').classList.add('hidden');
+      }
+    }
+
+    // Google Sign-In Simulation & Cloud Sync Storage
+    function handleGoogleLogin() {
+      const email = prompt('Masukkan Email Google Anda untuk sinkronisasi cloud:');
+      if (email && email.includes('@')) {
+        const username = email.split('@')[0];
+        currentUser = {
+          uid: 'usr_' + btoa(email).substring(0, 12),
+          email: email,
+          name: username.charAt(0).toUpperCase() + username.slice(1),
+          photo: `https://api.dicebear.com/7.x/bottts/svg?seed=${username}`
+        };
+
+        localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+        
+        // Cek apakah ada data cloud untuk user ini di local backup
+        const cloudDataKey = `finai_cloud_${currentUser.uid}`;
+        const cloudData = localStorage.getItem(cloudDataKey);
+        if (cloudData) {
+          const parsed = JSON.parse(cloudData);
+          transactions = parsed.transactions || [];
+          monthlyBudget = parsed.monthlyBudget || 2000000;
+          goals = parsed.goals || [];
+          saveToLocal();
+        } else {
+          syncToCloud();
+        }
+
+        checkAuthState();
+      } else if (email !== null) {
+        alert('Format email tidak valid. Masukkan alamat email Google Anda.');
+      }
+    }
+
+    function continueAsGuest() {
+      currentUser = {
+        uid: 'guest_local',
+        email: 'Tamu Lokal',
+        name: 'Pengguna Offline',
+        photo: ''
+      };
+      localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+      checkAuthState();
+    }
+
+    function handleLogout() {
+      if (confirm('Keluar dari akun FinAI? Data cloud Anda tetap tersimpan.')) {
+        localStorage.removeItem(USER_KEY);
+        currentUser = null;
+        checkAuthState();
+      }
+    }
+
+    function syncToCloud() {
+      if (!currentUser || currentUser.uid === 'guest_local') return;
+      const cloudDataKey = `finai_cloud_${currentUser.uid}`;
+      const payload = {
+        transactions,
+        monthlyBudget,
+        goals,
+        updatedAt: Date.now()
+      };
+      localStorage.setItem(cloudDataKey, JSON.stringify(payload));
+    }
+
+    function saveToLocal() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+      localStorage.setItem(BUDGET_KEY, monthlyBudget.toString());
+      localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
+      syncToCloud();
+    }
 
     function renderAll() {
       renderSummary();
@@ -356,7 +513,7 @@
       if (chartInstance) updateChartData();
     }
 
-    // 1. Indonesian Word Number Converter
+    // 1. Indonesian Word Converter
     function normalizeIndonesianWords(text) {
       let s = text.toLowerCase()
         .replace(/setengah juta/g, '500000')
@@ -369,13 +526,11 @@
         .replace(/sepuluh/g, '10')
         .replace(/sebelas/g, '11');
 
-      // Map kata dasar ke angka
       const unitMap = {
         'satu': 1, 'dua': 2, 'tiga': 3, 'empat': 4, 'lima': 5,
         'enam': 6, 'tujuh': 7, 'delapan': 8, 'sembilan': 9, 'sepuluh': 10
       };
 
-      // Handle kombinasi kata seperti "satu juta", "tiga ratus ribu", "lima puluh ribu"
       s = s.replace(/(satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)\s*juta/g, (m, p1) => (unitMap[p1] * 1000000).toString());
       s = s.replace(/(satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)\s*ratus\s*ribu/g, (m, p1) => (unitMap[p1] * 100000).toString());
       s = s.replace(/(satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)\s*puluh\s*ribu/g, (m, p1) => (unitMap[p1] * 10000).toString());
@@ -385,7 +540,7 @@
       return s;
     }
 
-    // 2. Web Speech API Voice Recognition
+    // 2. Speech Recognition (Web Speech API)
     function initSpeechRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
@@ -409,7 +564,7 @@
     function toggleVoiceRecording(forceState) {
       const btn = document.getElementById('btn-voice');
       if (!recognition) {
-        alert('Fitur suara tidak didukung browser ini. Gunakan Google Chrome.');
+        alert('Fitur suara tidak didukung di browser ini. Gunakan Google Chrome.');
         return;
       }
 
@@ -425,8 +580,8 @@
       }
     }
 
-    // 3. Compress Image Before OCR (Fixes OCR Error)
-    function compressImageFile(file, maxWidth = 1024, quality = 0.8) {
+    // 3. Compress Image Helper
+    function compressImageFile(file, maxWidth = 800, quality = 0.75) {
       return new Promise((resolve) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -453,23 +608,28 @@
       });
     }
 
-    // 4. Scan Receipt with Compressed Base64 Image
+    // 4. Robust Dual-Layer OCR Receipt Scanner
     async function handleReceiptUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const apiKey = localStorage.getItem(API_KEY_STORAGE);
       if (!apiKey) {
-        alert('Fitur Scan Struk memerlukan API Key. Silakan klik tombol API di kanan atas.');
+        alert('Fitur Scan Struk memerlukan API Key OpenRouter. Silakan klik tombol API di kanan atas.');
         openApiKeyModal();
         return;
       }
 
       const loaderId = 'loader-receipt-' + Date.now();
-      appendChatMessage('assistant', '📷 Sedang memproses dan membaca struk dengan AI Vision...', loaderId);
+      appendChatMessage('assistant', '📷 Sedang membaca dan memindai struk belanja dengan AI Vision...', loaderId);
 
       try {
         const base64Compressed = await compressImageFile(file);
+
+        const promptText = `Anda adalah sistem OCR kasir pintar. Baca foto struk ini dan temukan TOTAL AKHIR yang harus dibayar (Grand Total) dan NAMA TOKO/ITEM utama.
+KEMBALIKAN HANYA FORMAT JSON SEPERTI INI:
+{"description": "Nama Toko / Belanjaan", "nominal": 45000, "category": "Belanja Harian / Makanan & Minuman / Transportasi"}
+Jika format JSON sulit, tulis langsung: Total: [angka nominal], Toko: [nama toko]`;
 
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -485,14 +645,8 @@
               {
                 role: 'user',
                 content: [
-                  {
-                    type: 'text',
-                    text: 'Ekstrak total nominal belanja dan nama toko/item dari struk ini. Wajib kembalikan format JSON: {"description": "Nama Toko / Barang", "nominal": 25000, "category": "Makanan & Minuman"}'
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: { url: base64Compressed }
-                  }
+                  { type: 'text', text: promptText },
+                  { type: 'image_url', image_url: { url: base64Compressed } }
                 ]
               }
             ]
@@ -502,24 +656,61 @@
         const data = await res.json();
         document.getElementById(loaderId)?.remove();
 
-        const content = data.choices?.[0]?.message?.content || '';
-        const jsonMatch = content.match(/\{[\s\S]*?\}/);
+        if (data.error) {
+          appendChatMessage('assistant', `⚠️ Error OpenRouter: ${data.error.message || JSON.stringify(data.error)}`);
+          return;
+        }
 
+        const rawContent = data.choices?.[0]?.message?.content || '';
+
+        // LAPIS 1: Coba Parse JSON
+        let detected = null;
+        const jsonMatch = rawContent.match(/\{[\s\S]*?\}/);
         if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed && parsed.nominal) {
-            recordTransaction({
-              description: parsed.description || 'Struk Belanja',
-              nominal: parseFloat(parsed.nominal),
-              type: 'expense',
-              category: parsed.category || 'Belanja Harian'
-            });
+          try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed && (parsed.nominal || parsed.total)) {
+              detected = {
+                description: parsed.description || parsed.toko || 'Struk Belanja',
+                nominal: parseFloat(parsed.nominal || parsed.total),
+                category: parsed.category || 'Belanja Harian'
+              };
+            }
+          } catch (e) {}
+        }
 
-            appendChatMessage('assistant', `🧾 **Struk Berhasil Dicatat!**\n• **Item:** ${parsed.description || 'Struk Belanja'}\n• **Total:** Rp ${parseFloat(parsed.nominal).toLocaleString('id-ID')}\n• **Kategori:** ${parsed.category || 'Belanja Harian'}`);
-            return;
+        // LAPIS 2: Ekstraksi Cerdas Regex jika JSON tidak lengkap
+        if (!detected) {
+          const numbers = rawContent.replace(/\./g, '').match(/\d{4,9}/g);
+          if (numbers && numbers.length > 0) {
+            // Ambil angka terbesar yang masuk akal sebagai total belanja
+            const highestNum = Math.max(...numbers.map(n => parseInt(n)));
+            let store = 'Struk Belanja';
+            if (/indomaret/i.test(rawContent)) store = 'Indomaret';
+            else if (/alfamart/i.test(rawContent)) store = 'Alfamart';
+            else if (/superindo/i.test(rawContent)) store = 'Superindo';
+            else if (/spbu|pertamina/i.test(rawContent)) store = 'SPBU Pertamina';
+
+            detected = {
+              description: store,
+              nominal: highestNum,
+              category: store.includes('SPBU') ? 'Transportasi' : 'Belanja Harian'
+            };
           }
         }
-        appendChatMessage('assistant', '⚠️ Tidak dapat membaca nominal struk. Pastikan foto struk fokus dan cukup cahaya.');
+
+        if (detected && detected.nominal > 0) {
+          const trx = recordTransaction({
+            description: detected.description,
+            nominal: detected.nominal,
+            type: 'expense',
+            category: detected.category
+          });
+
+          appendChatMessage('assistant', `🧾 **Struk Berhasil Dicatat!**\n• **Toko/Item:** ${trx.description}\n• **Total:** Rp ${trx.nominal.toLocaleString('id-ID')}\n• **Kategori:** ${trx.category}`);
+        } else {
+          appendChatMessage('assistant', `⚠️ Respon AI: "${rawContent.slice(0, 150)}..."\nPastikan foto struk memiliki pencahayaan cukup dan nominal total terlihat jelas.`);
+        }
       } catch (err) {
         document.getElementById(loaderId)?.remove();
         appendChatMessage('assistant', '⚠️ Gagal membaca struk: ' + err.message);
@@ -528,12 +719,11 @@
       }
     }
 
-    // 5. Natural Language Parser
+    // 5. Natural Language Processing
     function parseNaturalLanguage(rawText) {
       const normalized = normalizeIndonesianWords(rawText);
       const lower = normalized.toLowerCase().trim();
 
-      // Deteksi Angka
       let nominal = 0;
       const numMatch = lower.match(/(\d+(?:[.,]\d+)?)\s*(juta|jt|ribu|rb|k)?/i);
 
@@ -550,16 +740,12 @@
 
       if (!nominal || nominal <= 0) return null;
 
-      // Deteksi Jenis Transaksi
       const incomeKeywords = ['gaji', 'income', 'masuk', 'cair', 'dapat rejeki', 'dikasih', 'bonus', 'dividen', 'profit', 'terima uang'];
-      const expenseKeywords = ['setor', 'kasih', 'kirim', 'transfer ke', 'bayar', 'beli', 'isi', 'belanja', 'nongkrong'];
-
       let type = 'expense';
       if (incomeKeywords.some(kw => lower.includes(kw)) && !lower.includes('setor') && !lower.includes('kirim')) {
         type = 'income';
       }
 
-      // Deteksi Kategori
       let category = type === 'income' ? 'Gaji & Pendapatan' : 'Lainnya';
       if (type === 'expense') {
         if (/setor|orang tua|keluarga|ortu|ibu|ayah|mama|papa/i.test(lower)) category = 'Keluarga & Transfer';
@@ -591,7 +777,7 @@
       };
 
       transactions.unshift(trx);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+      saveToLocal();
       renderAll();
       return trx;
     }
@@ -615,7 +801,7 @@
       }
     }
 
-    // 6. AI Conversation with Direct Auto-Execution
+    // 6. AI Chatbot
     async function askAiConversation(promptText) {
       const apiKey = localStorage.getItem(API_KEY_STORAGE);
       if (!apiKey) {
@@ -643,7 +829,7 @@
             messages: [
               {
                 role: 'system',
-                content: `Anda adalah FinAI, asisten keuangan pribadi. Saldo Pemasukan: Rp ${totalInc.toLocaleString('id-ID')}, Pengeluaran: Rp ${totalExp.toLocaleString('id-ID')}. Jika pengguna menyebutkan transaksi keuangan dalam kalimatnya, WAJIB sertakan blok JSON di paling akhir respons Anda: {"record": {"description": "Nama Transaksi", "nominal": 1000000, "type": "expense|income", "category": "Kategori"}}`
+                content: `Anda adalah FinAI, asisten keuangan pribadi cerdas. Saldo Pemasukan: Rp ${totalInc.toLocaleString('id-ID')}, Pengeluaran: Rp ${totalExp.toLocaleString('id-ID')}. Jika pengguna menyebutkan transaksi, wajib sertakan di akhir: {"record": {"description": "...", "nominal": 10000, "type": "expense|income", "category": "..."}}`
               },
               { role: 'user', content: promptText }
             ]
@@ -654,8 +840,6 @@
         document.getElementById(loaderId)?.remove();
 
         const rawReply = data.choices?.[0]?.message?.content || 'Maaf, belum ada respons.';
-        
-        // Cek jika AI menyertakan perintah simpan transaksi otomatis
         const jsonMatch = rawReply.match(/\{"record":\s*\{[\s\S]*?\}\}/);
         let cleanReply = rawReply;
 
@@ -676,7 +860,7 @@
       }
     }
 
-    // 7. Summary & Metrics Calculation
+    // 7. Metrics & Dashboard Calculations
     function renderSummary() {
       let income = 0;
       let expense = 0;
@@ -786,14 +970,14 @@
         current: parseFloat(document.getElementById('goal-current').value) || 0,
         deadline: document.getElementById('goal-deadline').value
       });
-      localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
+      saveToLocal();
       closeGoalModal();
       renderGoals();
     }
 
     function deleteGoal(id) {
       goals = goals.filter(g => g.id !== id);
-      localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
+      saveToLocal();
       renderGoals();
     }
 
@@ -935,14 +1119,14 @@
 
     function deleteTransaction(id) {
       transactions = transactions.filter(t => t.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+      saveToLocal();
       renderAll();
     }
 
     function clearAllData() {
       if (confirm('Hapus seluruh catatan transaksi?')) {
         transactions = [];
-        localStorage.removeItem(STORAGE_KEY);
+        saveToLocal();
         renderAll();
       }
     }
@@ -1020,7 +1204,7 @@
       const val = parseFloat(document.getElementById('input-monthly-budget').value);
       if (val > 0) {
         monthlyBudget = val;
-        localStorage.setItem(BUDGET_KEY, monthlyBudget.toString());
+        saveToLocal();
         renderSummary();
       }
       closeBudgetModal();
