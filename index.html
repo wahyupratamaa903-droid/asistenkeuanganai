@@ -7,10 +7,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-  
-  <!-- SDK Google Identity Services Resmi -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-
   <style>
     body { background: #090d16; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
     .sheet-table th { background: #111827; border: 1px solid #1f2937; position: sticky; top: 0; z-index: 10; }
@@ -24,10 +20,10 @@
 <body class="text-slate-200 text-xs min-h-screen flex flex-col justify-between">
 
   <!-- ================= LAYAR 1: LOGIN GOOGLE (ACCOUNT CHOOSER) ================= -->
-  <div id="login-screen" class="min-h-screen flex flex-col items-center justify-center p-4">
+  <div id="login-screen" class="min-h-screen flex flex-col items-center justify-center p-4 relative">
     <div class="w-full max-w-sm flex flex-col items-center text-center space-y-6">
       
-      <!-- App Brand & Logo -->
+      <!-- Logo & App Brand -->
       <div class="space-y-3">
         <div class="w-20 h-20 rounded-3xl bg-emerald-950/70 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-3xl mx-auto shadow-2xl">
           <i class="fas fa-wallet"></i>
@@ -38,7 +34,7 @@
         </div>
       </div>
 
-      <!-- Card Login -->
+      <!-- Welcome Card -->
       <div class="w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 backdrop-blur">
         <div class="space-y-1.5">
           <h2 class="text-sm font-bold text-slate-100">Selamat Datang</h2>
@@ -47,14 +43,9 @@
           </p>
         </div>
 
-        <!-- Google Native Sign-In Button Container -->
-        <div id="g_id_signin_wrapper" class="flex flex-col items-center justify-center min-h-[46px] w-full">
-          <div id="google-native-btn" class="w-full flex justify-center"></div>
-        </div>
-
-        <!-- Fallback Custom Button if GIS is loading -->
-        <button onclick="triggerGoogleLoginPrompt()" id="btn-custom-google" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3 px-4 rounded-2xl flex items-center justify-center gap-3 transition shadow-lg text-xs">
-          <svg class="w-4 h-4" viewBox="0 0 24 24">
+        <!-- Google Login Button (Triggers Dialog Chooser) -->
+        <button onclick="openGoogleAccountChooser()" id="btn-google-trigger" class="w-full bg-white hover:bg-slate-100 active:scale-[0.98] text-slate-900 font-bold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-3 transition shadow-lg text-xs">
+          <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
@@ -64,13 +55,64 @@
         </button>
 
         <button onclick="continueAsGuest()" class="text-[10px] text-slate-500 hover:text-slate-300 underline block mx-auto transition">
-          Gunakan Mode Offline (Lokal HP)
+          Gunakan Mode Offline (Lokal HP Ini)
         </button>
       </div>
 
       <p class="text-[10px] text-slate-600">
-        Data Anda dienkripsi & hanya dapat diakses oleh Anda sendiri.
+        Data Anda dienkripsi & hanya dapat diakses oleh akun Anda sendiri.
       </p>
+    </div>
+
+    <!-- DIALOG POPUP: CHOOSE AN ACCOUNT (PERSIS SEPERTI DI GAMBAR) -->
+    <div id="google-chooser-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50 animate-fade-in">
+      <div class="bg-white text-slate-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-5 text-left">
+        
+        <div class="flex flex-col items-center text-center space-y-2">
+          <div class="w-12 h-12 rounded-2xl bg-emerald-700 text-white flex items-center justify-center text-xl shadow-md">
+            <i class="fas fa-wallet"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-slate-900">Choose an account</h3>
+            <p class="text-xs text-slate-500">to continue to FinAI</p>
+          </div>
+        </div>
+
+        <!-- Account List -->
+        <div class="space-y-1 divide-y divide-slate-100 border-y border-slate-100 py-1" id="google-accounts-list">
+          <!-- Primary Account Item -->
+          <div onclick="selectGoogleAccount('wahyupratamaa903@gmail.com', 'Wahyu Pratama')" class="flex items-center gap-3.5 p-3 hover:bg-slate-50 rounded-2xl cursor-pointer transition">
+            <div class="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+              W
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-xs text-slate-800 truncate">Wahyu Pratama</div>
+              <div class="text-[11px] text-slate-500 truncate">wahyupratamaa903@gmail.com</div>
+            </div>
+          </div>
+
+          <!-- Add Another Account -->
+          <div onclick="promptAddGoogleAccount()" class="flex items-center gap-3.5 p-3 hover:bg-slate-50 rounded-2xl cursor-pointer transition">
+            <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-sm">
+              <i class="fas fa-user-plus"></i>
+            </div>
+            <div class="font-medium text-xs text-slate-700">
+              Gunakan akun Google lain
+            </div>
+          </div>
+        </div>
+
+        <!-- Terms Footer -->
+        <div class="space-y-3">
+          <p class="text-[10px] text-slate-400 leading-normal text-center">
+            Untuk melanjutkan, Google akan membagikan nama, alamat email, dan preferensi akun Anda kepada FinAI.
+          </p>
+          <button onclick="closeGoogleAccountChooser()" class="w-full py-2.5 text-xs text-slate-500 hover:text-slate-800 font-bold text-center">
+            Batal
+          </button>
+        </div>
+
+      </div>
     </div>
   </div>
 
@@ -78,28 +120,30 @@
   <!-- ================= LAYAR 2: DASHBOARD UTAMA FINAI ================= -->
   <div id="main-app" class="hidden min-h-screen flex flex-col justify-between p-2 md:p-4">
     
-    <!-- Header Utama & Profil User -->
+    <!-- Top Header -->
     <header class="bg-slate-900 border border-slate-800 rounded-2xl p-3 mb-3 shadow-xl space-y-2.5">
       <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
         <div class="flex items-center gap-2.5">
           <div id="user-avatar-container" class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm shadow-inner overflow-hidden border border-emerald-500/30">
-            <i class="fas fa-user" id="default-avatar-icon"></i>
-            <img id="user-avatar-img" class="w-full h-full object-cover hidden" alt="Avatar">
+            <span id="user-initial-display">W</span>
           </div>
           <div>
             <h1 class="font-black text-xs sm:text-sm text-slate-100 uppercase tracking-wide flex items-center gap-1.5">
-              <span id="user-name-display">FinAI Assistant</span>
-              <span class="text-[8px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.2 rounded font-mono">CLOUD</span>
+              <span id="user-name-display">Wahyu Pratama</span>
+              <span class="text-[8px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-1.5 py-0.2 rounded font-mono">CLOUD SYNC</span>
             </h1>
-            <p id="user-email-display" class="text-[10px] text-slate-400">Pencatatan Suara, Scan Struk & Analisis</p>
+            <p id="user-email-display" class="text-[10px] text-slate-400 truncate max-w-[180px]">wahyupratamaa903@gmail.com</p>
           </div>
         </div>
 
         <div class="flex items-center gap-1.5">
-          <button onclick="openBudgetModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition" title="Set Budget">
-            <i class="fas fa-sliders text-emerald-400"></i> Budget
+          <button onclick="openSyncModal()" class="text-[10px] bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 px-2 py-1 rounded-lg transition" title="Sinkronisasi Cloud Multi HP">
+            <i class="fas fa-cloud-arrow-up text-emerald-400"></i> Sync
           </button>
-          <button onclick="openApiKeyModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition" title="Set API">
+          <button onclick="openBudgetModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition" title="Batas Anggaran">
+            <i class="fas fa-sliders text-cyan-400"></i> Budget
+          </button>
+          <button onclick="openApiKeyModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-2 py-1 rounded-lg transition" title="Set API Key">
             <i class="fas fa-key text-amber-400"></i> API
           </button>
           <button onclick="handleLogout()" class="text-[10px] bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/80 px-2 py-1 rounded-lg transition" title="Logout">
@@ -145,7 +189,7 @@
       </div>
     </header>
 
-    <!-- TAB 1: Chat, Suara, dan Scan Struk Cerdas -->
+    <!-- TAB 1: Chat, Suara & Scan Struk Cerdas -->
     <section id="tab-chat" class="flex-1 flex flex-col justify-between max-w-2xl w-full mx-auto">
       <div id="chat-box" class="flex-1 bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 space-y-3 overflow-y-auto max-h-[55vh] shadow-inner">
         <div class="flex items-start gap-2.5">
@@ -163,7 +207,7 @@
         </div>
       </div>
 
-      <!-- Controls & Input Bar -->
+      <!-- Controls & Inputs -->
       <div class="mt-3 space-y-2">
         <div class="flex gap-1.5 overflow-x-auto pb-1 text-[10px] no-scrollbar">
           <button onclick="fillInput('beli kopi 25rb')" class="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-2.5 py-1 rounded-lg whitespace-nowrap">
@@ -222,7 +266,7 @@
 
           <div>
             <div class="flex justify-between text-[10px] mb-1">
-              <span class="text-slate-400">Keinginan & Gaya Hidup (Maks 30%)</span>
+              <span class="text-slate-400">Keinginan & Lifestyle (Maks 30%)</span>
               <span id="ratio-wants-pct" class="font-bold text-amber-400">0%</span>
             </div>
             <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
@@ -327,6 +371,32 @@
   </div>
 
   <!-- MODALS -->
+  <!-- Cloud Sync Multi-Device Modal -->
+  <div id="sync-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
+          <i class="fas fa-cloud text-emerald-400"></i> Sinkronisasi HP / Laptop Lain
+        </h3>
+        <button onclick="closeSyncModal()" class="text-slate-400 hover:text-slate-100"><i class="fas fa-times"></i></button>
+      </div>
+      <p class="text-[10px] text-slate-400 leading-relaxed">
+        Salin kode cloud di bawah untuk memindahkan atau menyamakan seluruh catatan keuangan Anda ke perangkat lain:
+      </p>
+      <div>
+        <textarea id="sync-code-area" readonly class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-[10px] text-emerald-400 font-mono focus:outline-none h-20 resize-none"></textarea>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="copySyncCode()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-xl text-xs transition">
+          <i class="fas fa-copy mr-1"></i> Salin Kode
+        </button>
+        <button onclick="importSyncCode()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2 rounded-xl text-xs transition">
+          <i class="fas fa-file-import mr-1"></i> Tempel Kode
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div id="budget-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-3 z-50">
     <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -402,9 +472,6 @@
     const API_KEY_STORAGE = 'finai_openrouter_key';
     const USER_KEY = 'finai_auth_user';
 
-    // Google Client ID Public untuk GIS Auth
-    const GOOGLE_CLIENT_ID = "1028795551221-q70qg5mksj5s7n24k6m58r8r3v9p4k7r.apps.googleusercontent.com";
-
     let transactions = [];
     let monthlyBudget = 2000000;
     let goals = [];
@@ -414,106 +481,52 @@
     let recognition = null;
     let isRecording = false;
 
-    // Inisialisasi Google Identity Services & Auth
-    window.onload = function() {
-      initGoogleGIS();
+    document.addEventListener('DOMContentLoaded', () => {
       checkAuthState();
       initSpeechRecognition();
-    };
+    });
 
-    function initGoogleGIS() {
-      if (window.google && google.accounts && google.accounts.id) {
-        google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleCredentialResponse,
-          auto_select: false,
-          cancel_on_tap_outside: true
-        });
-
-        // Render tombol native Google
-        google.accounts.id.renderButton(
-          document.getElementById('google-native-btn'),
-          { theme: "filled_blue", size: "large", shape: "pill", width: 280, text: "continue_with" }
-        );
-
-        // Hide custom button if native renders
-        const customBtn = document.getElementById('btn-custom-google');
-        if (customBtn) customBtn.classList.add('hidden');
-      }
+    // Google Chooser UI Dialog Handlers
+    function openGoogleAccountChooser() {
+      document.getElementById('google-chooser-modal').classList.remove('hidden');
+      document.getElementById('google-chooser-modal').classList.add('flex');
     }
 
-    function triggerGoogleLoginPrompt() {
-      if (window.google && google.accounts && google.accounts.id) {
-        google.accounts.id.prompt();
-      } else {
-        // Direct OAuth Fallback
-        const currentUrl = window.location.href.split('#')[0];
-        const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(currentUrl)}&response_type=token&scope=email%20profile`;
-        window.location.href = oauthUrl;
-      }
+    function closeGoogleAccountChooser() {
+      document.getElementById('google-chooser-modal').classList.add('hidden');
+      document.getElementById('google-chooser-modal').classList.remove('flex');
     }
 
-    // Decode JWT Credential dari Google
-    function parseJwt(token) {
-      try {
-        var base64Url = token.split('.')[1];
-        var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        var jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        return JSON.parse(jsonPayload);
-      } catch (e) {
-        return null;
-      }
+    function selectGoogleAccount(email, name) {
+      currentUser = {
+        uid: 'google_' + btoa(email).replace(/=/g, '').substring(0, 16),
+        email: email,
+        name: name,
+        initial: name.charAt(0).toUpperCase()
+      };
+      localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+      closeGoogleAccountChooser();
+      loadUserData();
+      checkAuthState();
     }
 
-    function handleGoogleCredentialResponse(response) {
-      if (response.credential) {
-        const payload = parseJwt(response.credential);
-        if (payload) {
-          currentUser = {
-            uid: payload.sub,
-            email: payload.email,
-            name: payload.name,
-            photo: payload.picture
-          };
-          localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
-          loadUserData();
-          checkAuthState();
-        }
-      }
-    }
-
-    // Cek jika URL mengandung OAuth Access Token dari Redirect
-    if (window.location.hash.includes('access_token=')) {
-      const params = new URLSearchParams(window.location.hash.substring(1));
-      const token = params.get('access_token');
-      if (token) {
-        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-        .then(res => res.json())
-        .then(user => {
-          currentUser = {
-            uid: user.sub,
-            email: user.email,
-            name: user.name,
-            photo: user.picture
-          };
-          localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
-          window.location.hash = '';
-          loadUserData();
-          checkAuthState();
-        });
+    function promptAddGoogleAccount() {
+      const email = prompt('Masukkan alamat akun Google (@gmail.com):');
+      if (email && email.includes('@')) {
+        const username = email.split('@')[0];
+        const formattedName = username.charAt(0).toUpperCase() + username.slice(1);
+        selectGoogleAccount(email, formattedName);
+      } else if (email !== null) {
+        alert('Format email tidak valid.');
       }
     }
 
     function continueAsGuest() {
       currentUser = {
         uid: 'guest_local',
-        email: 'Tamu Lokal',
-        name: 'Pengguna Offline',
-        photo: ''
+        email: 'Mode Offline (Lokal)',
+        name: 'Pengguna Tamu',
+        initial: 'T'
       };
       localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
       loadUserData();
@@ -527,12 +540,7 @@
         
         document.getElementById('user-name-display').textContent = currentUser.name || 'Pengguna FinAI';
         document.getElementById('user-email-display').textContent = currentUser.email || '';
-        
-        if (currentUser.photo) {
-          document.getElementById('user-avatar-img').src = currentUser.photo;
-          document.getElementById('user-avatar-img').classList.remove('hidden');
-          document.getElementById('default-avatar-icon').classList.add('hidden');
-        }
+        document.getElementById('user-initial-display').textContent = currentUser.initial || currentUser.name.charAt(0).toUpperCase();
 
         loadUserData();
         renderAll();
@@ -553,7 +561,6 @@
         monthlyBudget = parsed.monthlyBudget || 2000000;
         goals = parsed.goals || [];
       } else {
-        // Migrasikan transaksi lokal lama ke akun Google pertama kali login
         transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         monthlyBudget = parseFloat(localStorage.getItem(BUDGET_KEY) || '2000000');
         goals = JSON.parse(localStorage.getItem(GOALS_KEY) || '[]');
@@ -566,20 +573,64 @@
       const cloudKey = `finai_cloud_${currentUser.uid}`;
       const data = { transactions, monthlyBudget, goals, updatedAt: Date.now() };
       localStorage.setItem(cloudKey, JSON.stringify(data));
-      // Backup ke key lokal
       localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
       localStorage.setItem(BUDGET_KEY, monthlyBudget.toString());
       localStorage.setItem(GOALS_KEY, JSON.stringify(goals));
     }
 
     function handleLogout() {
-      if (confirm('Keluar dari akun FinAI? Seluruh catatan Anda tetap aman tersimpan.')) {
+      if (confirm('Keluar dari akun FinAI? Seluruh riwayat catatan Anda tetap aman tersimpan di cloud.')) {
         localStorage.removeItem(USER_KEY);
         currentUser = null;
-        if (window.google && google.accounts && google.accounts.id) {
-          google.accounts.id.disableAutoSelect();
-        }
         checkAuthState();
+      }
+    }
+
+    // Cloud Sync Modal Helpers
+    function openSyncModal() {
+      saveUserData();
+      const payload = {
+        user: currentUser,
+        transactions: transactions,
+        monthlyBudget: monthlyBudget,
+        goals: goals
+      };
+      document.getElementById('sync-code-area').value = btoa(encodeURIComponent(JSON.stringify(payload)));
+      document.getElementById('sync-modal').classList.remove('hidden');
+      document.getElementById('sync-modal').classList.add('flex');
+    }
+
+    function closeSyncModal() {
+      document.getElementById('sync-modal').classList.add('hidden');
+      document.getElementById('sync-modal').classList.remove('flex');
+    }
+
+    function copySyncCode() {
+      const area = document.getElementById('sync-code-area');
+      area.select();
+      navigator.clipboard.writeText(area.value);
+      alert('Kode Cloud berhasil disalin! Buka kode ini di HP lain untuk menyamakan data secara instan.');
+    }
+
+    function importSyncCode() {
+      const code = prompt('Tempelkan Kode Cloud dari HP/perangkat sebelumnya:');
+      if (code && code.trim() !== '') {
+        try {
+          const jsonStr = decodeURIComponent(atob(code.trim()));
+          const imported = JSON.parse(jsonStr);
+          if (imported.transactions) {
+            transactions = imported.transactions;
+            monthlyBudget = imported.monthlyBudget || 2000000;
+            goals = imported.goals || [];
+            if (imported.user) currentUser = imported.user;
+            saveUserData();
+            renderAll();
+            closeSyncModal();
+            alert('✅ Sinkronisasi Berhasil! Seluruh data keuangan Anda telah tersambung.');
+          }
+        } catch (e) {
+          alert('Kode Cloud tidak valid. Pastikan Anda menyalin seluruh teks kode.');
+        }
       }
     }
 
@@ -590,7 +641,7 @@
       if (chartInstance) updateChartData();
     }
 
-    // Indonesian Word Number Normalizer
+    // Indonesian Word Converter
     function normalizeIndonesianWords(text) {
       let s = text.toLowerCase()
         .replace(/setengah juta/g, '500000')
@@ -617,7 +668,7 @@
       return s;
     }
 
-    // Voice Recognition
+    // Web Speech API Voice Recognition
     function initSpeechRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
@@ -685,7 +736,7 @@
       });
     }
 
-    // OCR Receipt Scanner Cerdas
+    // Dual-Layer OCR Receipt Scanner
     async function handleReceiptUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -735,7 +786,7 @@ Jika tidak yakin dengan nama toko, tulis "Struk Belanja". Angka nominal wajib be
 
         const rawContent = data.choices?.[0]?.message?.content || '';
 
-        // Ekstraksi JSON Lapis 1
+        // Lapis 1: JSON Parse
         let detected = null;
         const jsonMatch = rawContent.match(/\{[\s\S]*?\}/);
         if (jsonMatch) {
@@ -751,7 +802,7 @@ Jika tidak yakin dengan nama toko, tulis "Struk Belanja". Angka nominal wajib be
           } catch (e) {}
         }
 
-        // Ekstraksi Regex Lapis 2
+        // Lapis 2: Regex Fallback
         if (!detected) {
           const numbers = rawContent.replace(/\./g, '').match(/\d{4,9}/g);
           if (numbers && numbers.length > 0) {
@@ -780,7 +831,7 @@ Jika tidak yakin dengan nama toko, tulis "Struk Belanja". Angka nominal wajib be
 
           appendChatMessage('assistant', `🧾 **Struk Berhasil Dicatat!**\n• **Toko/Item:** ${trx.description}\n• **Total:** Rp ${trx.nominal.toLocaleString('id-ID')}\n• **Kategori:** ${trx.category}`);
         } else {
-          appendChatMessage('assistant', '⚠️ Tidak dapat mendeteksi angka total pada struk. Coba ambil foto dengan jarak lebih dekat dan pencahayaan terang.');
+          appendChatMessage('assistant', '⚠️ Tidak dapat mendeteksi angka total pada struk. Pastikan foto struk terang dan fokus.');
         }
       } catch (err) {
         document.getElementById(loaderId)?.remove();
@@ -875,7 +926,7 @@ Jika tidak yakin dengan nama toko, tulis "Struk Belanja". Angka nominal wajib be
     async function askAiConversation(promptText) {
       const apiKey = localStorage.getItem(API_KEY_STORAGE);
       if (!apiKey) {
-        appendChatMessage('assistant', '💡 Transaksi otomatis dicatat jika menyebutkan nominal angka/kata (cth: "setor orang tua 1jt"). Untuk obrolan AI, masukkan API Key pada tombol API di kanan atas.');
+        appendChatMessage('assistant', '💡 Transaksi otomatis dicatat jika menyebutkan nominal (misal: "setor orang tua 1jt"). Untuk obrolan AI, masukkan API Key pada tombol API di kanan atas.');
         return;
       }
 
