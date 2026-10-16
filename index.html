@@ -434,7 +434,7 @@
 <div id="finai-lockscreen">
   <div style="font-size: 48px; margin-bottom: 12px;">🔒</div>
   <h3 style="margin: 0 0 6px 0;">FinAI Terkunci</h3>
-  <p style="color: #94a3b8; font-size: 13px; margin-bottom: 20px;">Masukkan PIN atau gunakan Sidik Jari untuk membuka data keuangan Anda.</p>
+  <p style="color: #94a3b8; font-size: 13px; margin-bottom: 20px;">Masukkan PIN 4 Digit atau gunakan Sidik Jari Anda.</p>
   <input type="password" id="finai-unlock-pin" class="finai-input" placeholder="PIN 4 Digit" maxlength="4" style="max-width: 220px; text-align: center; font-size: 18px; letter-spacing: 6px;">
   <button class="finai-btn" style="max-width: 220px; margin-bottom: 10px;" onclick="finaiVerifyPin()">Buka dengan PIN</button>
   <button class="finai-btn finai-btn-purple" style="max-width: 220px;" onclick="finaiVerifyBiometric()">👆 Sidik Jari / Wajah</button>
@@ -505,13 +505,13 @@
 
     <div id="panel-security" class="finai-panel">
       <div style="font-size: 12px; color: #94a3b8; margin-bottom: 10px;">
-        Lindungi privasi saldo FinAI Anda dengan PIN 4 angka dan sensor Biometrik Sidik Jari/Wajah HP.
+        Langkah 1: Buat PIN 4 angka cadangan.<br>Langkah 2: Daftarkan Sidik Jari / Wajah HP Anda.
       </div>
-      <input type="password" id="sec-pin" class="finai-input" placeholder="Buat PIN 4 Angka Baru" maxlength="4">
-      <button class="finai-btn" onclick="finaiSaveSecurityPin()">💾 Aktifkan Kunci PIN</button>
+      <input type="password" id="sec-pin" class="finai-input" placeholder="Masukkan PIN 4 Angka Cadangan (Wajib)" maxlength="4">
+      <button class="finai-btn" onclick="finaiSaveSecurityPin()">💾 Simpan Kunci PIN</button>
       <button class="finai-btn finai-btn-purple" style="margin-top:8px;" onclick="finaiRegisterBiometric()">👆 Daftarkan Sidik Jari / Wajah</button>
-      <button class="finai-btn" style="background:#334155; color:#cbd5e1; margin-top:8px;" onclick="finaiDisableSecurity()">🔓 Nonaktifkan Kunci Layar</button>
-      <div id="sec-status" class="finai-result-card" style="margin-top:10px;"></div>
+      <button class="finai-btn" style="background:#334155; color:#cbd5e1; margin-top:8px;" onclick="finaiDisableSecurity()">🔓 Nonaktifkan Semua Kunci</button>
+      <div id="sec-status" class="finai-result-card" style="margin-top:10px;">Status: Siap diatur.</div>
     </div>
   </div>
 </div>
@@ -522,6 +522,14 @@
     document.querySelectorAll('.finai-tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById('panel-' + tab).classList.add('active');
     btn.classList.add('active');
+  }
+
+  function finaiBufToBase64(buf) {
+    return btoa(String.fromCharCode(...new Uint8Array(buf)));
+  }
+
+  function finaiBase64ToBuf(b64) {
+    return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
   }
 
   function finaiReadMetrics() {
@@ -619,16 +627,23 @@
 
   function finaiSaveSecurityPin() {
     const pin = document.getElementById('sec-pin').value.trim();
-    if (pin.length !== 4) {
-      document.getElementById('sec-status').innerHTML = '⚠️ PIN harus 4 angka.';
+    if (!/^\d{4}$/.test(pin)) {
+      document.getElementById('sec-status').innerHTML = '⚠️ PIN harus terdiri dari 4 angka (contoh: 1234).';
       return;
     }
     localStorage.setItem('finai_lock_pin', pin);
-    document.getElementById('sec-status').innerHTML = '✅ Kunci PIN 4 angka aktif!';
+    document.getElementById('sec-status').innerHTML = '✅ Kunci PIN 4 angka berhasil disimpan!';
   }
 
   async function finaiRegisterBiometric() {
     const status = document.getElementById('sec-status');
+    let pin = document.getElementById('sec-pin').value.trim() || localStorage.getItem('finai_lock_pin');
+    if (!pin || pin.length !== 4) {
+      status.innerHTML = '⚠️ Silakan isi dan simpan <b>PIN 4 Angka Cadangan</b> di kolom atas terlebih dahulu sebelum mendaftarkan sidik jari.';
+      return;
+    }
+    localStorage.setItem('finai_lock_pin', pin);
+
     if (!window.PublicKeyCredential) {
       status.innerHTML = '⚠️ Browser belum mendukung WebAuthn.';
       return;
@@ -641,47 +656,85 @@
       const cred = await navigator.credentials.create({
         publicKey: {
           challenge,
-          rp: { name: "FinAI Security" },
-          user: { id: userId, name: "user@finai.app", displayName: "Aditya" },
-          pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-          authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }
+          rp: { name: "FinAI Security", id: window.location.hostname },
+          user: { id: userId, name: "aditya@finai.app", displayName: "Aditya Wahyu Pratama" },
+          pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+          authenticatorSelection: {
+            authenticatorAttachment: "platform",
+            userVerification: "required",
+            residentKey: "preferred"
+          },
+          timeout: 60000
         }
       });
       if (cred) {
+        localStorage.setItem('finai_cred_id', finaiBufToBase64(cred.rawId));
         localStorage.setItem('finai_biometric_enabled', 'true');
-        status.innerHTML = '✅ Sidik Jari / Wajah berhasil didaftarkan!';
+        status.innerHTML = '✅ Sidik Jari / Wajah & PIN Cadangan (' + pin + ') berhasil diaktifkan!';
       }
     } catch (e) {
-      status.innerHTML = 'ℹ️ Aktifkan kunci layar HP Anda terlebih dahulu.';
+      status.innerHTML = 'ℹ️ Pendaftaran dibatalkan atau sensor tidak merespons.';
     }
   }
 
   function finaiDisableSecurity() {
     localStorage.removeItem('finai_lock_pin');
     localStorage.removeItem('finai_biometric_enabled');
-    document.getElementById('sec-status').innerHTML = '🔓 Kunci layar dinonaktifkan.';
+    localStorage.removeItem('finai_cred_id');
+    document.getElementById('sec-status').innerHTML = '🔓 Semua kunci keamanan layar telah dinonaktifkan.';
   }
 
   function finaiVerifyPin() {
-    if (document.getElementById('finai-unlock-pin').value === localStorage.getItem('finai_lock_pin')) {
+    const input = document.getElementById('finai-unlock-pin').value.trim();
+    const saved = localStorage.getItem('finai_lock_pin');
+    // Jika pengguna belum pernah membuat PIN sebelumnya, otomatis bukakan kunci & reset status yang nyangkut
+    if (!saved || input === saved) {
+      if (!saved) {
+        localStorage.removeItem('finai_biometric_enabled');
+      }
       document.getElementById('finai-lockscreen').style.display = 'none';
     } else {
-      alert('PIN salah!');
+      alert('PIN salah! Silakan coba lagi.');
     }
   }
 
   async function finaiVerifyBiometric() {
+    const savedCredId = localStorage.getItem('finai_cred_id');
+    if (!savedCredId) {
+      // Jika ID sidik jari lama belum tersimpan, bukakan layar agar pengguna bisa mendaftar ulang dengan benar
+      localStorage.removeItem('finai_biometric_enabled');
+      document.getElementById('finai-lockscreen').style.display = 'none';
+      alert('Kunci sidik jari lama telah di-reset. Silakan daftarkan ulang di menu Fitur Super > Biometrik.');
+      return;
+    }
     try {
       const challenge = new Uint8Array(32);
       window.crypto.getRandomValues(challenge);
-      await navigator.credentials.get({ publicKey: { challenge, userVerification: "required" } });
+      await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          rpId: window.location.hostname,
+          allowCredentials: [{
+            id: finaiBase64ToBuf(savedCredId),
+            type: 'public-key',
+            transports: ['internal']
+          }],
+          userVerification: "required",
+          timeout: 60000
+        }
+      });
       document.getElementById('finai-lockscreen').style.display = 'none';
     } catch (e) {
-      alert('Gunakan PIN 4 angka Anda.');
+      alert('Verifikasi sidik jari dibatalkan. Silakan gunakan PIN 4 angka Anda.');
     }
   }
 
-  if (localStorage.getItem('finai_lock_pin') || localStorage.getItem('finai_biometric_enabled')) {
+  // Otomatis reset jika terkunci tanpa PIN & tanpa ID kredensial (memperbaiki bug terkunci sebelumnya)
+  if (!localStorage.getItem('finai_lock_pin') && !localStorage.getItem('finai_cred_id')) {
+    localStorage.removeItem('finai_biometric_enabled');
+  }
+
+  if (localStorage.getItem('finai_lock_pin') || localStorage.getItem('finai_cred_id')) {
     document.getElementById('finai-lockscreen').style.display = 'flex';
   }
 </script>
