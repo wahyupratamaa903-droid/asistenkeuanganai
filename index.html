@@ -305,3 +305,384 @@
   <script src="js/app.js"></script>
 </body>
 </html>
+<!-- ================= FINAI SUPER SUITE UPGRADE ================= -->
+<style>
+  #finai-fab {
+    position: fixed;
+    bottom: 85px;
+    right: 16px;
+    z-index: 99999;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    border: 1px solid #34d399;
+    border-radius: 999px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  #finai-super-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    background: rgba(9, 13, 24, 0.88);
+    backdrop-filter: blur(6px);
+    padding: 16px;
+    overflow-y: auto;
+    font-family: system-ui, -apple-system, sans-serif;
+    color: #f8fafc;
+  }
+  .finai-super-box {
+    max-width: 480px;
+    margin: 10px auto 40px auto;
+    background: #131b2e;
+    border: 1px solid #1e293b;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+  }
+  .finai-super-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+  .finai-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .finai-tab-btn {
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 8px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+  .finai-tab-btn.active {
+    background: rgba(16, 185, 129, 0.18);
+    color: #10b981;
+    border-color: #10b981;
+  }
+  .finai-panel { display: none; }
+  .finai-panel.active { display: block; }
+  .finai-input, .finai-select {
+    width: 100%;
+    box-sizing: border-box;
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #f8fafc;
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    font-size: 13px;
+  }
+  .finai-btn {
+    width: 100%;
+    background: #10b981;
+    color: #06281e;
+    border: none;
+    padding: 11px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .finai-btn-purple {
+    background: #8b5cf6;
+    color: #ffffff;
+  }
+  .finai-result-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  #finai-lockscreen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100001;
+    background: #0b1120;
+    color: #f8fafc;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+    text-align: center;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+</style>
+
+<div id="finai-lockscreen">
+  <div style="font-size: 48px; margin-bottom: 12px;">🔒</div>
+  <h3 style="margin: 0 0 6px 0;">FinAI Terkunci</h3>
+  <p style="color: #94a3b8; font-size: 13px; margin-bottom: 20px;">Masukkan PIN atau gunakan Sidik Jari untuk membuka data keuangan Anda.</p>
+  <input type="password" id="finai-unlock-pin" class="finai-input" placeholder="PIN 4 Digit" maxlength="4" style="max-width: 220px; text-align: center; font-size: 18px; letter-spacing: 6px;">
+  <button class="finai-btn" style="max-width: 220px; margin-bottom: 10px;" onclick="finaiVerifyPin()">Buka dengan PIN</button>
+  <button class="finai-btn finai-btn-purple" style="max-width: 220px;" onclick="finaiVerifyBiometric()">👆 Sidik Jari / Wajah</button>
+</div>
+
+<button id="finai-fab" onclick="document.getElementById('finai-super-modal').style.display='block'">
+  ⚡ Fitur Super
+</button>
+
+<div id="finai-super-modal">
+  <div class="finai-super-box">
+    <div class="finai-super-header">
+      <div>
+        <div style="font-weight: 800; font-size: 16px; color: #10b981;">⚡ FinAI Super Suite</div>
+        <div style="font-size: 11px; color: #94a3b8;">4 Fitur Revolusioner Tambahan</div>
+      </div>
+      <button onclick="document.getElementById('finai-super-modal').style.display='none'" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+
+    <div class="finai-tabs">
+      <button class="finai-tab-btn active" onclick="finaiSwitchTab('impulse', this)">🛑 Rem Belanja</button>
+      <button class="finai-tab-btn" onclick="finaiSwitchTab('split', this)">🧾 Split Bill</button>
+      <button class="finai-tab-btn" onclick="finaiSwitchTab('podcast', this)">🎧 Podcast AI</button>
+      <button class="finai-tab-btn" onclick="finaiSwitchTab('security', this)">🔐 Biometrik</button>
+    </div>
+
+    <div id="panel-impulse" class="finai-panel active">
+      <div style="font-size: 12px; color: #94a3b8; margin-bottom: 10px;">
+        Konversi harga barang ke <b>Jam Kerja</b> otomatis & uji kelayakan beli dengan Persona AI.
+      </div>
+      <input type="text" id="imp-item" class="finai-input" placeholder="Nama barang incaran (cth: Sepatu Lari)">
+      <input type="number" id="imp-price" class="finai-input" placeholder="Harga barang (cth: 450000)">
+      <select id="imp-persona" class="finai-select">
+        <option value="emak">👩 Mode Emak-Emak Galak (Pedas & Hemat)</option>
+        <option value="roaster">🔥 Mode Roaster Sarkas (Tamparan Realita)</option>
+        <option value="advisor">👔 Mode Konsultan Finansial (Logis & Bijak)</option>
+      </select>
+      <button class="finai-btn" onclick="finaiRunImpulseGuard()">Hitung Jam Kerja & Tanya AI</button>
+      <div id="imp-result" class="finai-result-card" style="display:none;"></div>
+    </div>
+
+    <div id="panel-split" class="finai-panel">
+      <div style="font-size: 12px; color: #94a3b8; margin-bottom: 10px;">
+        Hitung patungan otomatis beserta pajak (PB1/Service) & buat rincian tagihan WhatsApp.
+      </div>
+      <input type="text" id="sb-title" class="finai-input" placeholder="Nama Acara (cth: Makan Malam Bareng)">
+      <input type="number" id="sb-total" class="finai-input" placeholder="Subtotal Tagihan (Rp)">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <input type="number" id="sb-tax" class="finai-input" placeholder="Pajak/Service (%)" value="10">
+        <input type="number" id="sb-people" class="finai-input" placeholder="Jumlah Orang" value="2">
+      </div>
+      <input type="text" id="sb-names" class="finai-input" placeholder="Nama teman pisah koma (cth: Budi, Siti)">
+      <input type="text" id="sb-rek" class="finai-input" placeholder="Info Rekening/E-Wallet Anda (cth: DANA / BCA)">
+      <button class="finai-btn" onclick="finaiCalcSplitBill()">Buat Rincian & Salin ke WhatsApp</button>
+      <div id="sb-result" class="finai-result-card" style="display:none;"></div>
+    </div>
+
+    <div id="panel-podcast" class="finai-panel">
+      <div style="font-size: 12px; color: #94a3b8; margin-bottom: 10px;">
+        Dengarkan rangkuman audio kondisi keuangan Anda secara langsung.
+      </div>
+      <button class="finai-btn finai-btn-purple" onclick="finaiPlayPodcast()">▶️ Putar Podcast Keuangan Saya</button>
+      <button class="finai-btn" style="background:#ef4444; color:#fff; margin-top:8px;" onclick="window.speechSynthesis.cancel()">⏹️ Hentikan Suara</button>
+      <div id="podcast-script" class="finai-result-card" style="margin-top:12px;">
+        Klik tombol putar di atas untuk mendengarkan laporan audio otomatis dari data saldo layar Anda.
+      </div>
+    </div>
+
+    <div id="panel-security" class="finai-panel">
+      <div style="font-size: 12px; color: #94a3b8; margin-bottom: 10px;">
+        Lindungi privasi saldo FinAI Anda dengan PIN 4 angka dan sensor Biometrik Sidik Jari/Wajah HP.
+      </div>
+      <input type="password" id="sec-pin" class="finai-input" placeholder="Buat PIN 4 Angka Baru" maxlength="4">
+      <button class="finai-btn" onclick="finaiSaveSecurityPin()">💾 Aktifkan Kunci PIN</button>
+      <button class="finai-btn finai-btn-purple" style="margin-top:8px;" onclick="finaiRegisterBiometric()">👆 Daftarkan Sidik Jari / Wajah</button>
+      <button class="finai-btn" style="background:#334155; color:#cbd5e1; margin-top:8px;" onclick="finaiDisableSecurity()">🔓 Nonaktifkan Kunci Layar</button>
+      <div id="sec-status" class="finai-result-card" style="margin-top:10px;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function finaiSwitchTab(tab, btn) {
+    document.querySelectorAll('.finai-panel').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.finai-tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('panel-' + tab).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function finaiReadMetrics() {
+    const bodyText = document.body.innerText;
+    const parseRp = (label, fallback) => {
+      const regex = new RegExp(label + "[\\s\\S]{0,40}?Rp\\s*([0-9.]+)", "i");
+      const match = bodyText.match(regex);
+      return match ? parseInt(match[1].replace(/\./g, ''), 10) : fallback;
+    };
+    return {
+      saldo: parseRp("TOTAL SALDO CASH", 959980),
+      income: parseRp("PEMASUKAN", 1000000),
+      expense: parseRp("PENGELUARAN", 40020)
+    };
+  }
+
+  function finaiRunImpulseGuard() {
+    const item = document.getElementById('imp-item').value.trim() || 'Barang ini';
+    const price = parseInt(document.getElementById('imp-price').value, 10);
+    const persona = document.getElementById('imp-persona').value;
+    const resBox = document.getElementById('imp-result');
+    if (!price || price <= 0) {
+      resBox.style.display = 'block';
+      resBox.innerHTML = '⚠️ Masukkan nominal harga barang terlebih dahulu.';
+      return;
+    }
+    const { saldo, income } = finaiReadMetrics();
+    const hourlyWage = Math.max(Math.round(income / 176), 5000);
+    const hoursNeeded = (price / hourlyWage).toFixed(1);
+    const daysNeeded = (hoursNeeded / 8).toFixed(1);
+    const pctSaldo = ((price / Math.max(saldo, 1)) * 100).toFixed(1);
+
+    let msg = '';
+    if (persona === 'emak') {
+      msg = `👩 <b>Emak-Emak Galak:</b> "Heh! Mau beli <b>${item}</b> Rp ${price.toLocaleString('id-ID')}?! Itu nguras <b>${pctSaldo}%</b> sisa kas kamu! Kamu harus kerja <b>${hoursNeeded} jam (${daysNeeded} hari)</b> cuma buat bayar itu!"`;
+    } else if (persona === 'roaster') {
+      msg = `🔥 <b>Roaster AI:</b> "Saldo kas tinggal Rp ${saldo.toLocaleString('id-ID')} tapi udah gatel mau beli <b>${item}</b>. Barang itu setara <b>${hoursNeeded} jam</b> keringatmu!"`;
+    } else {
+      msg = `👔 <b>Konsultan Finansial:</b> "Membeli <b>${item}</b> memotong <b>${pctSaldo}%</b> likuiditas tunai Anda (setara <b>${hoursNeeded} jam kerja</b>). Tunda 48 jam sebelum membeli."`;
+    }
+
+    resBox.style.display = 'block';
+    resBox.innerHTML = `
+      <div style="color:#10b981; font-weight:700; margin-bottom:6px;">⏳ Setara ${hoursNeeded} Jam Kerja (${daysNeeded} Hari)</div>
+      <div style="font-size:12px; color:#94a3b8; margin-bottom:8px;">Mengambil ${pctSaldo}% dari Saldo Cash (Rp ${saldo.toLocaleString('id-ID')}).</div>
+      <div style="background:#1e293b; padding:10px; border-radius:8px;">${msg}</div>
+    `;
+  }
+
+  function finaiCalcSplitBill() {
+    const title = document.getElementById('sb-title').value.trim() || 'Patungan FinAI';
+    const subtotal = parseInt(document.getElementById('sb-total').value, 10) || 0;
+    const taxPct = parseFloat(document.getElementById('sb-tax').value) || 0;
+    const people = Math.max(parseInt(document.getElementById('sb-people').value, 10) || 1, 1);
+    const namesRaw = document.getElementById('sb-names').value.trim();
+    const rek = document.getElementById('sb-rek').value.trim() || 'Tanya via Chat';
+    const resBox = document.getElementById('sb-result');
+
+    if (subtotal <= 0) {
+      resBox.style.display = 'block';
+      resBox.innerHTML = '⚠️ Masukkan nominal subtotal tagihan terlebih dahulu.';
+      return;
+    }
+
+    const totalWithTax = Math.round(subtotal * (1 + taxPct / 100));
+    const perPerson = Math.ceil(totalWithTax / people);
+    const names = namesRaw ? namesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const listText = names.length > 0
+      ? names.map((n, i) => `${i+1}. ${n}: Rp ${perPerson.toLocaleString('id-ID')}`).join('\n')
+      : `• Per Orang (${people} org): Rp ${perPerson.toLocaleString('id-ID')}`;
+
+    const waText = `🧾 *SPLIT-BILL: ${title.toUpperCase()}*\nSubtotal: Rp ${subtotal.toLocaleString('id-ID')}\nPajak (${taxPct}%): Rp ${(totalWithTax - subtotal).toLocaleString('id-ID')}\n*Total: Rp ${totalWithTax.toLocaleString('id-ID')}*\n\n*Rincian:*\n${listText}\n\n💳 *Transfer ke:* ${rek}`;
+
+    resBox.style.display = 'block';
+    resBox.innerHTML = `
+      <div style="font-weight:700; color:#10b981; margin-bottom:6px;">Rp ${perPerson.toLocaleString('id-ID')} / orang</div>
+      <pre style="white-space:pre-wrap; background:#1e293b; padding:10px; border-radius:8px; font-size:11px; color:#e2e8f0;">${waText}</pre>
+      <button class="finai-btn" style="margin-top:8px;" onclick="window.open('https://wa.me/?text=' + encodeURIComponent(\`${waText}\`), '_blank')">📲 Kirim ke WhatsApp</button>
+    `;
+  }
+
+  function finaiPlayPodcast() {
+    const { saldo, income, expense } = finaiReadMetrics();
+    const hematRatio = income > 0 ? Math.round(((income - expense) / income) * 100) : 0;
+    const text = `Halo Aditya! Berikut laporan Podcast FinAI Anda. Pemasukan tercatat ${income.toLocaleString('id-ID')} rupiah, dan pengeluaran ${expense.toLocaleString('id-ID')} rupiah. Sisa saldo kas bersih Anda adalah ${saldo.toLocaleString('id-ID')} rupiah, dengan rasio tabungan ${hematRatio} persen. Pertahankan kebiasaan baik ini!`;
+
+    document.getElementById('podcast-script').innerHTML = `🎙️ <b>Membacakan:</b><br><br>"${text}"`;
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'id-ID';
+      window.speechSynthesis.speak(utter);
+    }
+  }
+
+  function finaiSaveSecurityPin() {
+    const pin = document.getElementById('sec-pin').value.trim();
+    if (pin.length !== 4) {
+      document.getElementById('sec-status').innerHTML = '⚠️ PIN harus 4 angka.';
+      return;
+    }
+    localStorage.setItem('finai_lock_pin', pin);
+    document.getElementById('sec-status').innerHTML = '✅ Kunci PIN 4 angka aktif!';
+  }
+
+  async function finaiRegisterBiometric() {
+    const status = document.getElementById('sec-status');
+    if (!window.PublicKeyCredential) {
+      status.innerHTML = '⚠️ Browser belum mendukung WebAuthn.';
+      return;
+    }
+    try {
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
+      const userId = new Uint8Array(16);
+      window.crypto.getRandomValues(userId);
+      const cred = await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: { name: "FinAI Security" },
+          user: { id: userId, name: "user@finai.app", displayName: "Aditya" },
+          pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+          authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }
+        }
+      });
+      if (cred) {
+        localStorage.setItem('finai_biometric_enabled', 'true');
+        status.innerHTML = '✅ Sidik Jari / Wajah berhasil didaftarkan!';
+      }
+    } catch (e) {
+      status.innerHTML = 'ℹ️ Aktifkan kunci layar HP Anda terlebih dahulu.';
+    }
+  }
+
+  function finaiDisableSecurity() {
+    localStorage.removeItem('finai_lock_pin');
+    localStorage.removeItem('finai_biometric_enabled');
+    document.getElementById('sec-status').innerHTML = '🔓 Kunci layar dinonaktifkan.';
+  }
+
+  function finaiVerifyPin() {
+    if (document.getElementById('finai-unlock-pin').value === localStorage.getItem('finai_lock_pin')) {
+      document.getElementById('finai-lockscreen').style.display = 'none';
+    } else {
+      alert('PIN salah!');
+    }
+  }
+
+  async function finaiVerifyBiometric() {
+    try {
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
+      await navigator.credentials.get({ publicKey: { challenge, userVerification: "required" } });
+      document.getElementById('finai-lockscreen').style.display = 'none';
+    } catch (e) {
+      alert('Gunakan PIN 4 angka Anda.');
+    }
+  }
+
+  if (localStorage.getItem('finai_lock_pin') || localStorage.getItem('finai_biometric_enabled')) {
+    document.getElementById('finai-lockscreen').style.display = 'flex';
+  }
+</script>
+<!-- ================= END FINAI SUPER SUITE ================= -->
