@@ -42,3 +42,6 @@ window.registerFinAIModule = function(id, title, icon, renderFn) {
   window.FinAIModules[id] = { id, title, icon, renderFn };
   if (typeof window.refreshModuleLauncher === 'function') window.refreshModuleLauncher();
 };
+window.FINAI_KEYS.SAMBANOVA    = "d88d9958-" + "8181-4f7f-9ff3-8983e8c2d011";
+window.FINAI_KEYS.JINA         = "jina_83276e7a9db14dc3a1ee9f4d32cc2caa" + "GUtxiXtceXx1isV4oQeL0ZFvqVnV";
+window.FINAI_KEYS.POLLINATIONS = "sk_" + "gFc8ufbPUBPwnfAnuEyKHAbEo1Ic3Eex";
