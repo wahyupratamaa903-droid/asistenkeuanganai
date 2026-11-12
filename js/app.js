@@ -1,4 +1,3 @@
-// KUNCI API MULTI-PENYEDIA (Terenkripsi Base64 Aman Push GitHub)
 const KEY_NVIDIA = atob("bnZhcGktM0JfNzh2WHZXVW1jdDYzQTNZVHBFZ1dMUnQ4Z2Z3QXZuSi1wR3dmQjR2WXowWVN2Q3M2SHc1VnpuOTlROUdvaw==");
 const KEY_OPENROUTER = atob("c2stb3ItdjEtOTJjMjU3ZTRkZDIxYzkyMjQxNjkwMmNiODVkYzE0ZDc0ZmQ0ZDRjNmI2MzcxNjA1ZmI2MWUwNTlhMDgyMzUzMg==");
 const KEY_CLOUDFLARE = atob("Y2Z1dF9YOEw1QkhZWk1IUHhHeDlaQm9Gbjg5VHdYdEtEM1d2ME1LUnBQem15MjUzN2U3ZDI=");
@@ -18,6 +17,19 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', () => {
   initSpeechRecognition();
 });
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function formatChatHtml(text) {
+  if (text.includes('<span class="animate-pulse">')) return text;
+  return escapeHtml(text).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+}
 
 // 1. Kompresi Gambar Otomatis via Canvas
 function compressImage(file, maxDimension = 1024, quality = 0.8) {
@@ -82,41 +94,38 @@ function cleanNominal(val) {
       str = str.replace(/,/g, '');
     }
   }
-  return parseFloat(str) || 0;
+  let num = parseFloat(str) || 0;
+  if (num > 0 && num < 1000) num *= 1000;
+  return num;
 }
 
-// 3. Multi-Provider Fallback Engine (NVIDIA -> OpenRouter -> Cloudflare)
+// 3. Multi-Provider Fallback Engine
 async function callMultiProviderAI(messages, isVision = false) {
   const routes = isVision ? [
-    // 1. NVIDIA NIM (Llama 3.2 11B Vision - Super Cepat & Kuat)
     {
       url: 'https://integrate.api.nvidia.com/v1/chat/completions',
       key: KEY_NVIDIA,
       model: 'meta/llama-3.2-11b-vision-instruct',
       headers: { 'Content-Type': 'application/json' }
     },
-    // 2. NVIDIA NIM (Llama 3.2 90B Vision)
     {
       url: 'https://integrate.api.nvidia.com/v1/chat/completions',
       key: KEY_NVIDIA,
       model: 'meta/llama-3.2-90b-vision-instruct',
       headers: { 'Content-Type': 'application/json' }
     },
-    // 3. OpenRouter (Llama 3.2 11B Vision)
     {
       url: 'https://openrouter.ai/api/v1/chat/completions',
       key: KEY_OPENROUTER,
       model: 'meta-llama/llama-3.2-11b-vision-instruct',
       headers: { 'Content-Type': 'application/json', 'HTTP-Referer': window.location.href, 'X-Title': 'FinAI' }
     },
-    // 4. OpenRouter (Qwen 2.5 VL 72B)
     {
       url: 'https://openrouter.ai/api/v1/chat/completions',
       key: KEY_OPENROUTER,
       model: 'qwen/qwen-2.5-vl-72b-instruct',
       headers: { 'Content-Type': 'application/json', 'HTTP-Referer': window.location.href, 'X-Title': 'FinAI' }
     },
-    // 5. OpenRouter (Gemini 2.0 Flash)
     {
       url: 'https://openrouter.ai/api/v1/chat/completions',
       key: KEY_OPENROUTER,
@@ -124,21 +133,18 @@ async function callMultiProviderAI(messages, isVision = false) {
       headers: { 'Content-Type': 'application/json', 'HTTP-Referer': window.location.href, 'X-Title': 'FinAI' }
     }
   ] : [
-    // 1. NVIDIA NIM (Llama 3.3 70B Instruct - Sangat Cerdas & Cepat)
     {
       url: 'https://integrate.api.nvidia.com/v1/chat/completions',
       key: KEY_NVIDIA,
       model: 'meta/llama-3.3-70b-instruct',
       headers: { 'Content-Type': 'application/json' }
     },
-    // 2. OpenRouter (Gemini 2.0 Flash)
     {
       url: 'https://openrouter.ai/api/v1/chat/completions',
       key: KEY_OPENROUTER,
       model: 'google/gemini-2.0-flash-001',
       headers: { 'Content-Type': 'application/json', 'HTTP-Referer': window.location.href, 'X-Title': 'FinAI' }
     },
-    // 3. OpenRouter (Llama 3.3 70B)
     {
       url: 'https://openrouter.ai/api/v1/chat/completions',
       key: KEY_OPENROUTER,
@@ -148,7 +154,6 @@ async function callMultiProviderAI(messages, isVision = false) {
   ];
 
   let lastError = null;
-
   for (const route of routes) {
     try {
       const headers = Object.assign({
@@ -177,7 +182,6 @@ async function callMultiProviderAI(messages, isVision = false) {
       lastError = err.message;
     }
   }
-
   throw new Error(lastError || 'Semua penyedia AI sedang mengalami gangguan.');
 }
 
@@ -249,68 +253,100 @@ function normalizeIndonesianWords(text) {
   return s;
 }
 
-// 6. Parser Transaksi Lokal
+// 6. Parser Transaksi Tunggal & Multi-Transaksi (Bebas Bug "Rpdan" & Nominal Kecil)
 function parseNaturalLanguage(rawText) {
   const normalized = normalizeIndonesianWords(rawText);
   const lower = normalized.toLowerCase().trim();
 
   let nominal = 0;
-  const numMatch = lower.match(/(\d+(?:[.,]\d+)?)\s*(juta|jt|ribu|rb|k)?/i);
-  
+  const numMatch = lower.match(/(?:rp\.?\s*)?(\d+(?:[.,]\d+)*)\s*(juta|jt|ribu|rb|k)?/i);
+
   if (numMatch) {
-    let rawNum = parseFloat(numMatch[1].replace(',', '.'));
+    const numStr = numMatch[1];
     const unit = numMatch[2] ? numMatch[2].toLowerCase() : '';
-    if (unit === 'juta' || unit === 'jt') nominal = rawNum * 1000000;
-    else if (unit === 'ribu' || unit === 'rb' || unit === 'k') nominal = rawNum * 1000;
-    else {
-      if (numMatch[1].includes('.') && rawNum < 1000) nominal = parseInt(numMatch[1].replace(/\./g, ''));
-      else nominal = rawNum;
+
+    if (unit === 'juta' || unit === 'jt') {
+      nominal = parseFloat(numStr.replace(',', '.')) * 1000000;
+    } else if (unit === 'ribu' || unit === 'rb' || unit === 'k') {
+      nominal = parseFloat(numStr.replace(',', '.')) * 1000;
+    } else {
+      if (numStr.includes('.') || numStr.includes(',')) {
+        const cleaned = numStr.replace(/[.,]/g, '');
+        nominal = parseInt(cleaned, 10);
+      } else {
+        nominal = parseFloat(numStr);
+        // Otomatis kalikan 1.000 jika pengguna mengetik angka < 1000 (contoh: "Bensin 20" -> Rp 20.000)
+        if (nominal > 0 && nominal < 1000) {
+          nominal *= 1000;
+        }
+      }
     }
   }
-  
+
   if (!nominal || nominal <= 0) return null;
 
-  const incomeKeywords = ['gaji', 'income', 'masuk', 'cair', 'dapat rejeki', 'dikasih', 'bonus', 'profit', 'dividen'];
+  const incomeKeywords = ['gaji', 'gajian', 'income', 'masuk', 'cair', 'dapat rejeki', 'dikasih', 'bonus', 'profit', 'dividen', 'thr'];
   let type = 'expense', category = 'Lainnya';
-  
   if (incomeKeywords.some(kw => lower.includes(kw)) && !lower.includes('setor') && !lower.includes('kirim')) {
     type = 'income';
     category = 'Gaji & Pendapatan';
   } else {
-    if (/setor|orang tua|ortu|ibu|ayah|mama|papa|keluarga/i.test(lower)) category = 'Keluarga & Transfer';
-    else if (/kopi|coffee|makan|minum|resto|warteg|jajan|sarapan|lunch|dinner|nasi|mie|bakso|ayam/i.test(lower)) category = 'Makanan & Minuman';
+    if (/setor|orang tua|ortu|ibu|ayah|mama|papa|keluarga|transfer/i.test(lower)) category = 'Keluarga & Transfer';
+    else if (/kopi|coffee|makan|minum|resto|warteg|jajan|sarapan|lunch|dinner|nasi|mie|bakso|ayam|goreng|sate|roti/i.test(lower)) category = 'Makanan & Minuman';
     else if (/bensin|pertalite|pertamax|parkir|gojek|grab|ojol|tol|angkot|kereta|servis|service|oli|motor|mobil/i.test(lower)) category = 'Transportasi';
     else if (/listrik|token|pln|pdam|air|wifi|internet|pulsa|kuota|sewa|kos|kontrakan|bpjs|tagihan|cicilan/i.test(lower)) category = 'Tagihan & Utilitas';
-    else if (/belanja|shopee|tokopedia|tiktok|baju|celana|sepatu|skincare|supermarket|indomaret|alfamart/i.test(lower)) category = 'Belanja Harian';
+    else if (/belanja|shopee|tokopedia|tiktok|baju|celana|sepatu|skincare|supermarket|indomaret|alfamart|sabun/i.test(lower)) category = 'Belanja Harian';
     else if (/nonton|bioskop|game|topup|steam|netflix|spotify|karaoke|liburan|wisata/i.test(lower)) category = 'Hiburan & Santai';
     else if (/obat|apotek|dokter|vitamin|klinik|rs|rumah sakit|sehat/i.test(lower)) category = 'Kesehatan';
     else if (/tabung|invest|emas|reksadana|sinking/i.test(lower)) category = 'Tabungan & Impian';
   }
-  
-  let desc = rawText.replace(/(\d+(?:[.,]\d+)?)\s*(juta|jt|ribu|rb|k)?/gi, '').replace(/^(beli|bayar|isi|buat|untuk|beliin)\s+/i, '').trim();
+
+  // Hapus "Rp", angka, dan kata depan secara bersih agar tidak pernah muncul "Rpdan"
+  let desc = rawText
+    .replace(/(?:rp\.?\s*)?\d+(?:[.,]\d+)*\s*(?:juta|jt|ribu|rb|k)?/gi, '')
+    .replace(/^(tadi\s+(?:pagi|siang|sore|malam)\s+)?(beli|bayar|isi|buat|untuk|beliin)\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
   if (!desc) desc = category;
-  return { description: desc.charAt(0).toUpperCase() + desc.slice(1), nominal, type, category };
+  return { description: desc.charAt(0).toUpperCase() + desc.slice(1), nominal: Math.round(nominal), type, category };
+}
+
+function parseMultipleTransactions(rawText) {
+  // Pisahkan kalimat jika ada kata hubung "dan", "terus", "lalu", "serta", atau koma yang diikuti angka
+  const parts = rawText
+    .split(/\s+(?:dan|terus|lalu|serta|kemudian)\s+|,\s*/i)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  if (parts.length > 1) {
+    const results = parts.map(p => parseNaturalLanguage(p)).filter(Boolean);
+    if (results.length > 0) return results;
+  }
+
+  const single = parseNaturalLanguage(rawText);
+  return single ? [single] : [];
 }
 
 // 7. Rekam Transaksi
 function recordTransaction(item) {
-  const now = Date.now();
-  const trx = { 
-    id: item.id || now, 
+  const now = Date.now() + Math.floor(Math.random() * 100);
+  const trx = {
+    id: item.id || now,
     timestamp: item.timestamp || now,
-    date: item.date || new Date(now).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }), 
-    description: item.description, 
-    type: item.type || 'expense', 
+    date: item.date || new Date(now).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+    description: item.description,
+    type: item.type || 'expense',
     category: item.category || 'Lainnya',
     nominal: parseFloat(item.nominal)
   };
-  window.transactions.unshift(trx); 
-  if (typeof saveCloudData === 'function') saveCloudData(); 
-  renderAll(); 
+  window.transactions.unshift(trx);
+  if (typeof saveCloudData === 'function') saveCloudData();
+  renderAll();
   return trx;
 }
 
-// 8. Input Handler
+// 8. Input Handler (Mendukung Banyak Transaksi Sekaligus)
 async function handleUserInput(e) {
   if (e) e.preventDefault();
   const inputEl = document.getElementById('chat-input');
@@ -319,12 +355,15 @@ async function handleUserInput(e) {
 
   appendChatMessage('user', text);
   inputEl.value = '';
-  
-  const parsed = parseNaturalLanguage(text);
-  if (parsed) {
-    const trx = recordTransaction(parsed);
-    const typeLabel = trx.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
-    appendChatMessage('assistant', `✅ **${typeLabel} Dicatat!**\n• **Item:** ${trx.description}\n• **Kategori:** ${trx.category}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}`);
+
+  const parsedList = parseMultipleTransactions(text);
+  if (parsedList.length > 0) {
+    const messages = parsedList.map(item => {
+      const trx = recordTransaction(item);
+      const typeLabel = trx.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
+      return `✅ **${typeLabel} Dicatat!**\n• **Item:** ${trx.description}\n• **Kategori:** ${trx.category}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}`;
+    });
+    appendChatMessage('assistant', messages.join('\n\n'));
   } else {
     await askAiConversation(text);
   }
@@ -338,10 +377,10 @@ function initSpeechRecognition() {
     window.recognition.lang = 'id-ID';
     window.recognition.continuous = false;
     window.recognition.interimResults = false;
-    window.recognition.onresult = (e) => { 
-      document.getElementById('chat-input').value = e.results[0][0].transcript; 
-      toggleVoiceRecording(false); 
-      handleUserInput(); 
+    window.recognition.onresult = (e) => {
+      document.getElementById('chat-input').value = e.results[0][0].transcript;
+      toggleVoiceRecording(false);
+      handleUserInput();
     };
     window.recognition.onerror = () => toggleVoiceRecording(false);
     window.recognition.onend = () => toggleVoiceRecording(false);
@@ -351,13 +390,13 @@ function initSpeechRecognition() {
 function toggleVoiceRecording(forceState) {
   const btn = document.getElementById('btn-voice');
   if (!window.recognition) return alert('Fitur suara tidak didukung di peramban ini.');
-  if (forceState === false) { 
-    btn.classList.remove('recording-active'); 
-    try { window.recognition.stop(); } catch(e){} 
+  if (forceState === false) {
+    btn.classList.remove('recording-active');
+    try { window.recognition.stop(); } catch (e) {}
     return;
   }
-  btn.classList.add('recording-active'); 
-  try { window.recognition.start(); } catch(e){}
+  btn.classList.add('recording-active');
+  try { window.recognition.start(); } catch (e) {}
 }
 
 function appendChatMessage(role, text, id = null) {
@@ -370,15 +409,13 @@ function appendChatMessage(role, text, id = null) {
     <div class="w-7 h-7 rounded-lg ${isUser ? 'bg-emerald-600 text-white' : 'bg-emerald-500/20 text-emerald-400'} flex items-center justify-center text-xs mt-0.5 flex-shrink-0">
       <i class="fas fa-${isUser ? 'user' : 'robot'}"></i>
     </div>
-    <div class="${isUser ? 'bg-emerald-600 text-white rounded-tr-none' : 'bg-slate-800/90 border border-slate-700 text-slate-200 rounded-tl-none'} p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] whitespace-pre-wrap shadow-sm">
-      ${text}
-    </div>
+    <div class="${isUser ? 'bg-emerald-600 text-white rounded-tr-none' : 'bg-slate-800/90 border border-slate-700 text-slate-200 rounded-tl-none'} p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] whitespace-pre-wrap shadow-sm">${formatChatHtml(text)}</div>
   `;
   box.appendChild(div);
   box.scrollTop = box.scrollHeight;
 }
 
-// 10. Obrolan AI & AI Advisor via Multi-Provider
+// 10. Obrolan AI & AI Advisor
 async function askAiConversation(promptText) {
   const loaderId = 'loading-' + Date.now();
   appendChatMessage('assistant', '<span class="animate-pulse">Sedang mengetik...</span>', loaderId);
@@ -398,12 +435,12 @@ async function askAiConversation(promptText) {
 async function requestAiAudit() {
   const currentList = getFilteredTransactions();
   if (currentList.length === 0) return alert('Belum ada transaksi pada periode ini untuk dianalisis.');
-  
+
   const box = document.getElementById('ai-insight-box');
   const btn = document.getElementById('btn-audit');
   btn.disabled = true;
   box.textContent = '🧠 Sedang menganalisis data periode terpilih...';
-  
+
   const expList = currentList.filter(t => t.type === 'expense');
   const incList = currentList.filter(t => t.type === 'income');
   const totalExp = expList.reduce((s, t) => s + t.nominal, 0);
@@ -430,14 +467,14 @@ async function requestAiAudit() {
 function renderSummary() {
   const currentList = getFilteredTransactions();
   let inc = 0, exp = 0;
-  
-  currentList.forEach(t => { 
-    if (t.type === 'income') inc += t.nominal; 
-    else exp += t.nominal; 
+
+  currentList.forEach(t => {
+    if (t.type === 'income') inc += t.nominal;
+    else exp += t.nominal;
   });
-  
+
   document.getElementById('stat-balance').textContent = `Rp ${(inc - exp).toLocaleString('id-ID')}`;
-  document.getElementById('stat-income').textContent = `Rp ${inc.toLocaleString('id-ID')}`; 
+  document.getElementById('stat-income').textContent = `Rp ${inc.toLocaleString('id-ID')}`;
   document.getElementById('stat-expense').textContent = `Rp ${exp.toLocaleString('id-ID')}`;
 }
 
@@ -445,7 +482,6 @@ function renderSummary() {
 function renderGoals() {
   const container = document.getElementById('goals-container');
   if (!container) return;
-
   if (!window.goals || window.goals.length === 0) {
     container.innerHTML = `
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center text-slate-500">
@@ -474,7 +510,7 @@ function renderGoals() {
         <div class="flex items-center justify-between">
           <div>
             <h4 class="font-bold text-xs text-slate-100 flex items-center gap-1.5">
-              <span>${g.name}</span>
+              <span>${escapeHtml(g.name)}</span>
               ${isFinished ? '<span class="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[8px] px-1.5 py-0.2 rounded font-mono">TERCAPAI</span>' : ''}
             </h4>
             <p class="text-[10px] text-slate-400">Target: ${new Date(g.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} • <b class="text-cyan-400">${diffDays} hari lagi</b></p>
@@ -543,6 +579,7 @@ function handleSaveGoal(e) {
 
   window.goals.push(newGoal);
   localStorage.setItem('finai_goals_v1', JSON.stringify(window.goals));
+  if (typeof saveCloudData === 'function') saveCloudData();
   closeGoalModal();
   renderGoals();
 }
@@ -551,6 +588,7 @@ function deleteGoal(id) {
   if (confirm('Hapus target impian ini?')) {
     window.goals = window.goals.filter(g => g.id !== id);
     localStorage.setItem('finai_goals_v1', JSON.stringify(window.goals));
+    if (typeof saveCloudData === 'function') saveCloudData();
     renderGoals();
   }
 }
@@ -560,12 +598,12 @@ function depositToGoal(id) {
   if (!goal) return;
 
   const inputAmount = prompt(`Masukkan nominal setor tabungan untuk "${goal.name}" (Rp):`);
-  const amount = parseFloat(inputAmount);
+  const amount = cleanNominal(inputAmount);
 
   if (amount && amount > 0) {
     goal.current += amount;
     localStorage.setItem('finai_goals_v1', JSON.stringify(window.goals));
-    
+
     recordTransaction({
       description: `Tabungan: ${goal.name}`,
       nominal: amount,
@@ -577,22 +615,21 @@ function depositToGoal(id) {
   }
 }
 
-// 13. Render Tabel Riwayat dengan Pencarian & Filter Kategori
+// 13. Render Tabel Riwayat (Dilengkapi Tombol Edit & Hapus)
 function renderHistoryTable() {
   const tb = document.getElementById('history-table-body');
   if (!tb) return;
-  
+
   let currentList = getFilteredTransactions();
 
   const searchInput = document.getElementById('history-search-input');
   const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
-
   const catFilter = document.getElementById('history-category-filter');
   const selectedCat = catFilter ? catFilter.value : 'ALL';
 
   if (keyword) {
-    currentList = currentList.filter(t => 
-      t.description.toLowerCase().includes(keyword) || 
+    currentList = currentList.filter(t =>
+      t.description.toLowerCase().includes(keyword) ||
       t.category.toLowerCase().includes(keyword)
     );
   }
@@ -601,22 +638,41 @@ function renderHistoryTable() {
     currentList = currentList.filter(t => t.category === selectedCat);
   }
 
-  if (currentList.length === 0) { 
-    tb.innerHTML = '<tr><td class="p-6 text-center text-slate-500">Tidak ada transaksi yang cocok</td></tr>'; 
-    return; 
+  if (currentList.length === 0) {
+    tb.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-slate-500">Tidak ada transaksi yang cocok</td></tr>';
+    return;
   }
 
   tb.innerHTML = currentList.map(t => `
     <tr class="border-b border-slate-800/60 hover:bg-slate-800/30 transition">
-      <td class="p-2.5 text-slate-400 whitespace-nowrap">${t.date}</td>
+      <td class="p-2.5 text-slate-400 whitespace-nowrap">${escapeHtml(t.date)}</td>
       <td class="p-2.5 font-bold text-slate-200">
-        <div>${t.description}</div>
-        <div class="text-[9px] font-normal text-slate-400">${t.category}</div>
+        <div>${escapeHtml(t.description)}</div>
+        <div class="text-[9px] font-normal text-slate-400">${escapeHtml(t.category)}</div>
       </td>
       <td class="p-2.5 text-right font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}">Rp ${t.nominal.toLocaleString('id-ID')}</td>
-      <td class="p-2.5 text-center"><button onclick="deleteTransaction(${t.id})" class="text-slate-600 hover:text-rose-400 transition p-1"><i class="fas fa-trash"></i></button></td>
+      <td class="p-2.5 text-center whitespace-nowrap">
+        <button onclick="editTransaction(${t.id})" title="Edit" class="text-slate-500 hover:text-emerald-400 transition p-1 mr-1"><i class="fas fa-edit"></i></button>
+        <button onclick="deleteTransaction(${t.id})" title="Hapus" class="text-slate-600 hover:text-rose-400 transition p-1"><i class="fas fa-trash"></i></button>
+      </td>
     </tr>
   `).join('');
+}
+
+function editTransaction(id) {
+  const trx = window.transactions.find(t => t.id === id);
+  if (!trx) return;
+  const newDesc = prompt('Edit Nama / Deskripsi Transaksi:', trx.description);
+  if (newDesc === null) return;
+  const newNom = prompt('Edit Nominal Transaksi (Rp):', trx.nominal);
+  if (newNom === null) return;
+
+  if (newDesc.trim()) trx.description = newDesc.trim();
+  const parsedNom = parseFloat(String(newNom).replace(/[^0-9]/g, ''));
+  if (parsedNom > 0) trx.nominal = parsedNom;
+
+  if (typeof saveCloudData === 'function') saveCloudData();
+  renderAll();
 }
 
 function deleteTransaction(id) {
@@ -628,11 +684,10 @@ function deleteTransaction(id) {
 // 14. Navigasi 4 Tab
 function switchTab(selectedTab) {
   const tabs = ['chat', 'charts', 'goals', 'history'];
-  
   tabs.forEach(t => {
     const section = document.getElementById(`tab-${t}`);
     const btn = document.getElementById(`tab-btn-${t}`);
-    
+
     if (t === selectedTab) {
       section.classList.remove('hidden');
       btn.className = 'py-2 font-bold rounded-xl text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 transition flex items-center justify-center gap-1';
@@ -654,54 +709,53 @@ function switchTab(selectedTab) {
 function initChart() {
   const ctx = document.getElementById('categoryChart');
   if (!ctx) return;
-  window.chartInstance = new Chart(ctx.getContext('2d'), { 
-    type: 'doughnut', 
-    data: { 
-      labels: [], 
-      datasets: [{ 
-        data: [], 
-        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f43f5e', '#64748b'], 
-        borderWidth: 2, 
-        borderColor: '#0f172a' 
-      }] 
-    }, 
-    options: { 
-      responsive: true, 
-      maintainAspectRatio: false, 
-      plugins: { 
-        legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 12 } } 
-      } 
-    } 
-  }); 
+  window.chartInstance = new Chart(ctx.getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: [],
+      datasets: [{
+        data: [],
+        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f43f5e', '#64748b'],
+        borderWidth: 2,
+        borderColor: '#0f172a'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 12 } }
+      }
+    }
+  });
   updateChartData();
 }
 
 function updateChartData() {
-  if (!window.chartInstance) return; 
+  if (!window.chartInstance) return;
   const currentList = getFilteredTransactions();
-  const m = {}; 
-  
-  currentList.filter(t => t.type === 'expense').forEach(t => { 
-    m[t.category] = (m[t.category] || 0) + t.nominal; 
+  const m = {};
+  currentList.filter(t => t.type === 'expense').forEach(t => {
+    m[t.category] = (m[t.category] || 0) + t.nominal;
   });
 
-  const d = Object.values(m); 
+  const d = Object.values(m);
   const emptyEl = document.getElementById('chart-empty-msg');
   const chartEl = document.getElementById('categoryChart');
-  
+
   if (d.length === 0) {
     emptyEl.classList.remove('hidden');
     chartEl.classList.add('hidden');
   } else {
     emptyEl.classList.add('hidden');
     chartEl.classList.remove('hidden');
-    window.chartInstance.data.labels = Object.keys(m); 
-    window.chartInstance.data.datasets[0].data = d; 
-    window.chartInstance.update(); 
+    window.chartInstance.data.labels = Object.keys(m);
+    window.chartInstance.data.datasets[0].data = d;
+    window.chartInstance.update();
   }
 }
 
-// 16. OCR VISION RESI & STRUK (NVIDIA NIM + OPENROUTER VISION)
+// 16. OCR VISION RESI & STRUK
 async function handleReceiptUpload(event, mode = 'physical') {
   const file = event.target.files[0];
   if (!file) return;
@@ -712,14 +766,13 @@ async function handleReceiptUpload(event, mode = 'physical') {
 
   try {
     const base64Img = await compressImage(file, 1024, 0.8);
-    
-    const promptText = mode === 'digital' 
+
+    const promptText = mode === 'digital'
       ? `Anda adalah OCR pembaca bukti transfer / QRIS / screenshot E-Wallet Indonesia (DANA, GoPay, OVO, ShopeePay, BCA, BRImo, Mandiri).
 1. Temukan nama penerima / merchant / toko tujuan.
 2. Temukan TOTAL NOMINAL transaksi uang (angka bulat).
 3. Tentukan type: 'expense' (keluar/transfer) atau 'income' (uang masuk/terima).
 4. Tentukan category: Makanan & Minuman / Transportasi / Tagihan & Utilitas / Belanja Harian / Hiburan & Santai / Keluarga & Transfer / Kesehatan / Lainnya.
-
 KEMBALIKAN HANYA FORMAT JSON PERSIS:
 {"description": "Nama Merchant / Penerima", "nominal": 50000, "type": "expense", "category": "Keluarga & Transfer"}`
       : `Ekstrak nama toko dan TOTAL AKHIR belanja dari foto struk ini. Kembalikan format JSON persis: {"description": "Nama Toko", "nominal": 25000, "type": "expense", "category": "Belanja Harian"}`;
@@ -733,7 +786,7 @@ KEMBALIKAN HANYA FORMAT JSON PERSIS:
     }], true);
 
     document.getElementById(loaderId)?.remove();
-    
+
     let detected = null;
     const jsonMatch = rawContent.match(/\{[\s\S]*?\}/);
     if (jsonMatch) {
@@ -741,17 +794,16 @@ KEMBALIKAN HANYA FORMAT JSON PERSIS:
         const parsed = JSON.parse(jsonMatch[0]);
         const cleanedNominal = cleanNominal(parsed.nominal || parsed.total || parsed.amount);
         if (cleanedNominal > 0) {
-          detected = { 
-            description: parsed.description || parsed.merchant || (mode === 'digital' ? 'Transfer / QRIS' : 'Struk Belanja'), 
-            nominal: cleanedNominal, 
+          detected = {
+            description: parsed.description || parsed.merchant || (mode === 'digital' ? 'Transfer / QRIS' : 'Struk Belanja'),
+            nominal: cleanedNominal,
             type: parsed.type || 'expense',
             category: parsed.category || (mode === 'digital' ? 'Keluarga & Transfer' : 'Belanja Harian')
           };
         }
-      } catch(err){}
+      } catch (err) {}
     }
 
-    // Fallback ekstraksi regex jika AI menjawab teks biasa
     if (!detected) {
       const numMatch = rawContent.match(/(?:Rp\.?|Total|Nominal|IDR|Sebesar|Rp\s*)?\s*([\d\.,]{4,})/i);
       if (numMatch) {
@@ -769,7 +821,6 @@ KEMBALIKAN HANYA FORMAT JSON PERSIS:
 
     if (detected && detected.nominal > 0) {
       const trx = recordTransaction(detected);
-      const typeLabel = trx.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
       const badge = mode === 'digital' ? '📱 Resi Digital' : '🧾 Struk Kasir';
       appendChatMessage('assistant', `✅ **${badge} Terdeteksi!**\n• **Item:** ${trx.description}\n• **Kategori:** ${trx.category}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}`);
     } else {
@@ -783,23 +834,23 @@ KEMBALIKAN HANYA FORMAT JSON PERSIS:
   }
 }
 
-// 17. Ekspor CSV
+// 17. Ekspor CSV (Aman dari Koma & Kutip Ganda)
 function exportToCSV() {
   const currentList = getFilteredTransactions();
   if (!currentList.length) return alert('Tidak ada transaksi pada periode ini untuk diunduh!');
-  
-  let csv = 'Tanggal,Deskripsi,Tipe,Kategori,Nominal\n';
-  currentList.forEach(t => { 
-    csv += `"${t.date}","${t.description}","${t.type}","${t.category}","${t.nominal}"\n`; 
+  let csv = '\uFEFFTanggal,Deskripsi,Tipe,Kategori,Nominal\n';
+  currentList.forEach(t => {
+    const safeDesc = String(t.description || '').replace(/"/g, '""');
+    const safeCat = String(t.category || '').replace(/"/g, '""');
+    csv += `"${t.date}","${safeDesc}","${t.type}","${safeCat}","${t.nominal}"\n`;
   });
-  
   const a = document.createElement('a');
-  a.href = window.URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.href = window.URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
   a.download = `laporan_keuangan_${window.currentPeriod}_${Date.now()}.csv`;
   a.click();
 }
 
-// 18. Ekspor Rekap Visual PDF
+// 18. Ekspor Rekap Visual PDF (Menampilkan Seluruh Transaksi Tanpa Terpotong 15 Baris)
 function exportVisualPDF() {
   const currentList = getFilteredTransactions();
   if (!currentList.length) return alert('Tidak ada data transaksi untuk diekspor ke PDF!');
@@ -814,24 +865,21 @@ function exportVisualPDF() {
     }
   });
   const balance = inc - exp;
-
   const periodLabels = {
     today: 'Hari Ini',
     week: 'Minggu Ini',
     month: 'Bulan Ini',
     all: 'Semua Waktu'
   };
-
   const userName = document.getElementById('user-display-name')?.textContent || 'Pengguna';
   const currentDate = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-
   let topExpensesHtml = '';
   const sortedExp = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
   sortedExp.forEach(([cat, nom]) => {
     const pct = exp > 0 ? Math.round((nom / exp) * 100) : 0;
     topExpensesHtml += `
       <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:11px;">
-        <span><b>${cat}</b> (${pct}%)</span>
+        <span><b>${escapeHtml(cat)}</b> (${pct}%)</span>
         <span>Rp ${nom.toLocaleString('id-ID')}</span>
       </div>
     `;
@@ -850,7 +898,7 @@ function exportVisualPDF() {
         <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">Laporan Transaksi Periode: <b>${periodLabels[window.currentPeriod]}</b></p>
       </div>
       <div style="text-align: right; font-size: 10px; color: #64748b;">
-        <div>Nama: <b>${userName}</b></div>
+        <div>Nama: <b>${escapeHtml(userName)}</b></div>
         <div>Dicetak: ${currentDate}</div>
       </div>
     </div>
@@ -887,11 +935,11 @@ function exportVisualPDF() {
           </tr>
         </thead>
         <tbody>
-          ${currentList.slice(0, 15).map(t => `
+          ${currentList.map(t => `
             <tr>
-              <td style="padding: 5px 6px; border: 1px solid #e2e8f0;">${t.date}</td>
-              <td style="padding: 5px 6px; border: 1px solid #e2e8f0;">${t.description}</td>
-              <td style="padding: 5px 6px; border: 1px solid #e2e8f0;">${t.category}</td>
+              <td style="padding: 5px 6px; border: 1px solid #e2e8f0;">${escapeHtml(t.date)}</td>
+              <td style="padding: 5px 6px; border: 1px solid #e2e8f0;">${escapeHtml(t.description)}</td>
+              <td style="padding: 5px 6px; border: 1px solid #e2e8f0;">${escapeHtml(t.category)}</td>
               <td style="padding: 5px 6px; border: 1px solid #e2e8f0; text-align: right; color: ${t.type==='income'?'#16a34a':'#dc2626'}; font-weight: bold;">Rp ${t.nominal.toLocaleString('id-ID')}</td>
             </tr>
           `).join('')}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finai-cache-v2';
+const CACHE_NAME = 'finai-cache-v4';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -14,16 +14,20 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  // Lewati request non-GET (seperti POST ke AI / Firebase) agar tidak error
+  if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+
   e.respondWith(
     fetch(e.request)
       .then((response) => {
-        return caches.open(CACHE_NAME).then((cache) => {
-          cache.put(e.request, response.clone());
-          return response;
-        });
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+        }
+        return response;
       })
       .catch(() => caches.match(e.request))
   );
 });
-// update 1792117032
-// fix-biometric 1792151237

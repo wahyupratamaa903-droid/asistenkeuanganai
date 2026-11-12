@@ -1,4 +1,4 @@
-const firebaseConfig = {
+const firebaseConfig = window.FIREBASE_CONFIG || {
   apiKey: "AIzaSyAToXxxnn6LlmFwX7XjxFRgnZlH2PxvfaI",
   authDomain: "asisten-keuangan-ai-45072.firebaseapp.com",
   projectId: "asisten-keuangan-ai-45072",
@@ -9,12 +9,12 @@ const firebaseConfig = {
 
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+const db = (typeof firebase.firestore === 'function') ? firebase.firestore() : null;
 
 window.transactions = [];
 window.monthlyBudget = 2000000;
 window.currentAuthUser = null;
 
-// Hindari redirect loop dengan persistence LOCAL
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
   auth.onAuthStateChanged((user) => {
     if (user) {
@@ -37,7 +37,7 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
 function loginWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
   auth.signInWithPopup(provider).catch(err => {
-    if(err.code === 'auth/popup-blocked') auth.signInWithRedirect(provider);
+    if (err.code === 'auth/popup-blocked') auth.signInWithRedirect(provider);
     else alert(err.message);
   });
 }
@@ -63,18 +63,58 @@ function updateUserUI(user) {
   document.getElementById('user-display-email').textContent = user.email || '';
 }
 
-function loadCloudData(uid) {
+async function loadCloudData(uid) {
+  // 1. Muat instan dari LocalStorage
   const saved = localStorage.getItem(`cloud_${uid}`);
   if (saved) {
-    const p = JSON.parse(saved);
-    window.transactions = p.transactions || [];
-    window.monthlyBudget = p.monthlyBudget || 2000000;
+    try {
+      const p = JSON.parse(saved);
+      window.transactions = p.transactions || [];
+      window.monthlyBudget = p.monthlyBudget || 2000000;
+      if (p.goals) window.goals = p.goals;
+    } catch (e) {}
   }
-  if(typeof renderAll === 'function') renderAll();
-  if(typeof initChart === 'function') initChart();
+  if (typeof renderAll === 'function') renderAll();
+  if (typeof initChart === 'function') initChart();
+
+  // 2. Sinkronisasi dari Cloud Firestore jika online & bukan akun offline
+  if (db && uid !== 'offline') {
+    try {
+      const doc = await db.collection('users').doc(uid).get();
+      if (doc.exists) {
+        const data = doc.data();
+        if (Array.isArray(data.transactions) && data.transactions.length >= window.transactions.length) {
+          window.transactions = data.transactions;
+          window.monthlyBudget = data.monthlyBudget || 2000000;
+          if (Array.isArray(data.goals)) {
+            window.goals = data.goals;
+            localStorage.setItem('finai_goals_v1', JSON.stringify(window.goals));
+          }
+          localStorage.setItem(`cloud_${uid}`, JSON.stringify({
+            transactions: window.transactions,
+            monthlyBudget: window.monthlyBudget,
+            goals: window.goals
+          }));
+          if (typeof renderAll === 'function') renderAll();
+        }
+      }
+    } catch (e) {
+      console.warn('Mode lokal aktif:', e.message);
+    }
+  }
 }
 
 function saveCloudData() {
   if (!window.currentAuthUser) return;
-  localStorage.setItem(`cloud_${window.currentAuthUser.uid}`, JSON.stringify({ transactions: window.transactions, monthlyBudget: window.monthlyBudget }));
+  const uid = window.currentAuthUser.uid;
+  const payload = {
+    transactions: window.transactions || [],
+    monthlyBudget: window.monthlyBudget || 2000000,
+    goals: window.goals || [],
+    updatedAt: Date.now()
+  };
+  localStorage.setItem(`cloud_${uid}`, JSON.stringify(payload));
+  if (db && uid !== 'offline') {
+    db.collection('users').doc(uid).set(payload, { merge: true }).catch(() => {});
+  }
 }
