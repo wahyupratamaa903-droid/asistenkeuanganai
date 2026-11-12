@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finai-cache-v4';
+const CACHE_NAME = 'finai-cache-v5';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -31,3 +31,4 @@ self.addEventListener('fetch', (e) => {
       .catch(() => caches.match(e.request))
   );
 });
+// fix-session-and-balance 1794461350

@@ -692,7 +692,7 @@
       if (!saved) {
         localStorage.removeItem('finai_biometric_enabled');
       }
-      document.getElementById('finai-lockscreen').style.display = 'none';
+      sessionStorage.setItem('finai_session_unlocked', 'true'); document.getElementById('finai-lockscreen').style.display = 'none';
     } else {
       alert('PIN salah! Silakan coba lagi.');
     }
@@ -703,7 +703,7 @@
     if (!savedCredId) {
       // Jika ID sidik jari lama belum tersimpan, bukakan layar agar pengguna bisa mendaftar ulang dengan benar
       localStorage.removeItem('finai_biometric_enabled');
-      document.getElementById('finai-lockscreen').style.display = 'none';
+      sessionStorage.setItem('finai_session_unlocked', 'true'); document.getElementById('finai-lockscreen').style.display = 'none';
       alert('Kunci sidik jari lama telah di-reset. Silakan daftarkan ulang di menu Fitur Super > Biometrik.');
       return;
     }
@@ -723,7 +723,7 @@
           timeout: 60000
         }
       });
-      document.getElementById('finai-lockscreen').style.display = 'none';
+      sessionStorage.setItem('finai_session_unlocked', 'true'); document.getElementById('finai-lockscreen').style.display = 'none';
     } catch (e) {
       alert('Verifikasi sidik jari dibatalkan. Silakan gunakan PIN 4 angka Anda.');
     }

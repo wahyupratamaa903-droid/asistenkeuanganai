@@ -31,7 +31,6 @@ function formatChatHtml(text) {
   return escapeHtml(text).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
 }
 
-// 1. Kompresi Gambar Otomatis via Canvas
 function compressImage(file, maxDimension = 1024, quality = 0.8) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -42,7 +41,6 @@ function compressImage(file, maxDimension = 1024, quality = 0.8) {
       img.onload = () => {
         let width = img.width;
         let height = img.height;
-
         if (width > height) {
           if (width > maxDimension) {
             height = Math.round((height * maxDimension) / width);
@@ -54,15 +52,12 @@ function compressImage(file, maxDimension = 1024, quality = 0.8) {
             height = maxDimension;
           }
         }
-
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
-
-        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-        resolve(compressedBase64);
+        resolve(canvas.toDataURL('image/jpeg', quality));
       };
       img.onerror = (err) => reject(err);
     };
@@ -70,7 +65,6 @@ function compressImage(file, maxDimension = 1024, quality = 0.8) {
   });
 }
 
-// 2. Pembersih Angka Nominal
 function cleanNominal(val) {
   if (typeof val === 'number') return val;
   if (!val) return 0;
@@ -99,7 +93,6 @@ function cleanNominal(val) {
   return num;
 }
 
-// 3. Multi-Provider Fallback Engine
 async function callMultiProviderAI(messages, isVision = false) {
   const routes = isVision ? [
     {
@@ -185,7 +178,6 @@ async function callMultiProviderAI(messages, isVision = false) {
   throw new Error(lastError || 'Semua penyedia AI sedang mengalami gangguan.');
 }
 
-// 4. Filter Transaksi Periode
 function getFilteredTransactions() {
   const list = window.transactions || [];
   if (window.currentPeriod === 'all') return list;
@@ -196,18 +188,15 @@ function getFilteredTransactions() {
   if (window.currentPeriod === 'today') {
     return list.filter(t => (t.timestamp || t.id) >= startOfToday);
   }
-
   if (window.currentPeriod === 'week') {
     const dayOfWeek = now.getDay() || 7;
     const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek + 1).getTime();
     return list.filter(t => (t.timestamp || t.id) >= startOfWeek);
   }
-
   if (window.currentPeriod === 'month') {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
     return list.filter(t => (t.timestamp || t.id) >= startOfMonth);
   }
-
   return list;
 }
 
@@ -234,7 +223,6 @@ function renderAll() {
   if (window.chartInstance) updateChartData();
 }
 
-// 5. Normalisasi Kata Angka Bahasa Indonesia
 function normalizeIndonesianWords(text) {
   let s = text.toLowerCase()
     .replace(/setengah juta/g, '500000')
@@ -253,41 +241,64 @@ function normalizeIndonesianWords(text) {
   return s;
 }
 
-// 6. Parser Transaksi Tunggal & Multi-Transaksi (Bebas Bug "Rpdan" & Nominal Kecil)
+function extractNominalFromText(rawText) {
+  const normalized = normalizeIndonesianWords(rawText);
+  const lower = normalized.toLowerCase().trim();
+  const numMatch = lower.match(/(?:rp\.?\s*)?(\d+(?:[.,]\d+)*)\s*(juta|jt|ribu|rb|k)?/i);
+  if (!numMatch) return 0;
+
+  const numStr = numMatch[1];
+  const unit = numMatch[2] ? numMatch[2].toLowerCase() : '';
+  let nominal = 0;
+
+  if (unit === 'juta' || unit === 'jt') {
+    nominal = parseFloat(numStr.replace(',', '.')) * 1000000;
+  } else if (unit === 'ribu' || unit === 'rb' || unit === 'k') {
+    nominal = parseFloat(numStr.replace(',', '.')) * 1000;
+  } else {
+    if (numStr.includes('.') || numStr.includes(',')) {
+      nominal = parseInt(numStr.replace(/[.,]/g, ''), 10);
+    } else {
+      nominal = parseFloat(numStr);
+      if (nominal > 0 && nominal < 1000) nominal *= 1000;
+    }
+  }
+  return Math.round(nominal || 0);
+}
+
+// Parser Cerdas (Membedakan Atur Saldo Cash, Pemasukan, dan Pengeluaran)
 function parseNaturalLanguage(rawText) {
   const normalized = normalizeIndonesianWords(rawText);
   const lower = normalized.toLowerCase().trim();
-
-  let nominal = 0;
-  const numMatch = lower.match(/(?:rp\.?\s*)?(\d+(?:[.,]\d+)*)\s*(juta|jt|ribu|rb|k)?/i);
-
-  if (numMatch) {
-    const numStr = numMatch[1];
-    const unit = numMatch[2] ? numMatch[2].toLowerCase() : '';
-
-    if (unit === 'juta' || unit === 'jt') {
-      nominal = parseFloat(numStr.replace(',', '.')) * 1000000;
-    } else if (unit === 'ribu' || unit === 'rb' || unit === 'k') {
-      nominal = parseFloat(numStr.replace(',', '.')) * 1000;
-    } else {
-      if (numStr.includes('.') || numStr.includes(',')) {
-        const cleaned = numStr.replace(/[.,]/g, '');
-        nominal = parseInt(cleaned, 10);
-      } else {
-        nominal = parseFloat(numStr);
-        // Otomatis kalikan 1.000 jika pengguna mengetik angka < 1000 (contoh: "Bensin 20" -> Rp 20.000)
-        if (nominal > 0 && nominal < 1000) {
-          nominal *= 1000;
-        }
-      }
-    }
-  }
+  const nominal = extractNominalFromText(rawText);
 
   if (!nominal || nominal <= 0) return null;
 
-  const incomeKeywords = ['gaji', 'gajian', 'income', 'masuk', 'cair', 'dapat rejeki', 'dikasih', 'bonus', 'profit', 'dividen', 'thr'];
+  // 1. Deteksi perintah mengatur ulang total saldo cash ("saldo cash sekarang 1 juta", "uang cash sekarang 500rb", "ubah saldo jadi 2 juta")
+  const isSetBalance = /(?:saldo|uang\s+cash|uang\s+tunai|kas)\s+(?:cash\s+|tunai\s+)?(?:sekarang|saat\s+ini|jadi|adalah|sisa)|(?:atur|ubah|set|ganti)\s+(?:saldo|uang\s+cash)/i.test(lower);
+  if (isSetBalance) {
+    return {
+      isSetBalance: true,
+      targetBalance: nominal,
+      description: 'Saldo Cash Tunai',
+      nominal: nominal,
+      type: 'income',
+      category: 'Gaji & Pendapatan'
+    };
+  }
+
+  // 2. Deteksi kata kunci Pemasukan (termasuk saldo, uang cash, modal, punya uang, dikasih, dll)
+  const expenseVerbs = /\b(beli|bayar|isi|buat|untuk|beliin|jajan|belanja|habis|keluar|potong|tarik\s+biaya)\b/i;
+  const incomeKeywords = [
+    'gaji', 'gajian', 'income', 'masuk', 'cair', 'dapat', 'dikasih', 'bonus',
+    'profit', 'dividen', 'thr', 'saldo', 'uang cash', 'uang tunai', 'kas tunai',
+    'modal', 'punya uang', 'ada uang', 'pegang uang', 'uang saku', 'kiriman',
+    'dikirimin', 'terima', 'jual', 'penjualan', 'untung', 'laba', 'kembalian', 'refund'
+  ];
+
   let type = 'expense', category = 'Lainnya';
-  if (incomeKeywords.some(kw => lower.includes(kw)) && !lower.includes('setor') && !lower.includes('kirim')) {
+
+  if (incomeKeywords.some(kw => lower.includes(kw)) && !expenseVerbs.test(lower) && !lower.includes('setor') && !lower.includes('kirim ke')) {
     type = 'income';
     category = 'Gaji & Pendapatan';
   } else {
@@ -301,7 +312,6 @@ function parseNaturalLanguage(rawText) {
     else if (/tabung|invest|emas|reksadana|sinking/i.test(lower)) category = 'Tabungan & Impian';
   }
 
-  // Hapus "Rp", angka, dan kata depan secara bersih agar tidak pernah muncul "Rpdan"
   let desc = rawText
     .replace(/(?:rp\.?\s*)?\d+(?:[.,]\d+)*\s*(?:juta|jt|ribu|rb|k)?/gi, '')
     .replace(/^(tadi\s+(?:pagi|siang|sore|malam)\s+)?(beli|bayar|isi|buat|untuk|beliin)\s+/i, '')
@@ -313,7 +323,6 @@ function parseNaturalLanguage(rawText) {
 }
 
 function parseMultipleTransactions(rawText) {
-  // Pisahkan kalimat jika ada kata hubung "dan", "terus", "lalu", "serta", atau koma yang diikuti angka
   const parts = rawText
     .split(/\s+(?:dan|terus|lalu|serta|kemudian)\s+|,\s*/i)
     .map(s => s.trim())
@@ -328,7 +337,6 @@ function parseMultipleTransactions(rawText) {
   return single ? [single] : [];
 }
 
-// 7. Rekam Transaksi
 function recordTransaction(item) {
   const now = Date.now() + Math.floor(Math.random() * 100);
   const trx = {
@@ -346,7 +354,6 @@ function recordTransaction(item) {
   return trx;
 }
 
-// 8. Input Handler (Mendukung Banyak Transaksi Sekaligus)
 async function handleUserInput(e) {
   if (e) e.preventDefault();
   const inputEl = document.getElementById('chat-input');
@@ -359,6 +366,42 @@ async function handleUserInput(e) {
   const parsedList = parseMultipleTransactions(text);
   if (parsedList.length > 0) {
     const messages = parsedList.map(item => {
+      // Jika pengguna mengatur ulang saldo cash ("saldo cash sekarang 1 juta")
+      if (item.isSetBalance) {
+        // Bersihkan transaksi pengeluaran salah sebelumnya yang bernama "Saldo cash..."
+        window.transactions = (window.transactions || []).filter(t =>
+          !(t.type === 'expense' && /^(saldo|uang\s+cash)/i.test(t.description))
+        );
+        let inc = 0, exp = 0;
+        window.transactions.forEach(t => {
+          if (t.type === 'income') inc += t.nominal;
+          else exp += t.nominal;
+        });
+        const currentBal = inc - exp;
+        const diff = item.targetBalance - currentBal;
+
+        if (diff === 0) {
+          renderAll();
+          return `✅ **Saldo Cash Sudah Sesuai!**\n• **Total Saldo Cash:** Rp ${item.targetBalance.toLocaleString('id-ID')}`;
+        } else if (diff > 0) {
+          const trx = recordTransaction({
+            description: currentBal === 0 ? 'Saldo Kas Tunai' : 'Penyesuaian Saldo Masuk',
+            nominal: diff,
+            type: 'income',
+            category: 'Gaji & Pendapatan'
+          });
+          return `✅ **Saldo Cash Diperbarui!**\n• **Item:** ${trx.description}\n• **Tipe:** Pemasukan (+Rp ${diff.toLocaleString('id-ID')})\n• **Total Saldo Cash Sekarang:** Rp ${item.targetBalance.toLocaleString('id-ID')}`;
+        } else {
+          const trx = recordTransaction({
+            description: 'Penyesuaian Saldo Keluar',
+            nominal: Math.abs(diff),
+            type: 'expense',
+            category: 'Lainnya'
+          });
+          return `✅ **Saldo Cash Diperbarui!**\n• **Item:** ${trx.description}\n• **Penyesuaian:** -Rp ${Math.abs(diff).toLocaleString('id-ID')}\n• **Total Saldo Cash Sekarang:** Rp ${item.targetBalance.toLocaleString('id-ID')}`;
+        }
+      }
+
       const trx = recordTransaction(item);
       const typeLabel = trx.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
       return `✅ **${typeLabel} Dicatat!**\n• **Item:** ${trx.description}\n• **Kategori:** ${trx.category}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}`;
@@ -369,7 +412,6 @@ async function handleUserInput(e) {
   }
 }
 
-// 9. Speech Recognition
 function initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SpeechRecognition) {
@@ -415,7 +457,6 @@ function appendChatMessage(role, text, id = null) {
   box.scrollTop = box.scrollHeight;
 }
 
-// 10. Obrolan AI & AI Advisor
 async function askAiConversation(promptText) {
   const loaderId = 'loading-' + Date.now();
   appendChatMessage('assistant', '<span class="animate-pulse">Sedang mengetik...</span>', loaderId);
@@ -463,7 +504,6 @@ async function requestAiAudit() {
   }
 }
 
-// 11. Render Metrik Saldo
 function renderSummary() {
   const currentList = getFilteredTransactions();
   let inc = 0, exp = 0;
@@ -478,7 +518,6 @@ function renderSummary() {
   document.getElementById('stat-expense').textContent = `Rp ${exp.toLocaleString('id-ID')}`;
 }
 
-// 12. Pelacak Sinking Fund Presisi
 function renderGoals() {
   const container = document.getElementById('goals-container');
   if (!container) return;
@@ -615,7 +654,6 @@ function depositToGoal(id) {
   }
 }
 
-// 13. Render Tabel Riwayat (Dilengkapi Tombol Edit & Hapus)
 function renderHistoryTable() {
   const tb = document.getElementById('history-table-body');
   if (!tb) return;
@@ -666,10 +704,12 @@ function editTransaction(id) {
   if (newDesc === null) return;
   const newNom = prompt('Edit Nominal Transaksi (Rp):', trx.nominal);
   if (newNom === null) return;
+  const newType = confirm('Apakah ini PEMASUKAN (uang masuk)?\n\nKlik OK untuk Pemasukan (+)\nKlik Batal/Cancel untuk Pengeluaran (-)');
 
   if (newDesc.trim()) trx.description = newDesc.trim();
   const parsedNom = parseFloat(String(newNom).replace(/[^0-9]/g, ''));
   if (parsedNom > 0) trx.nominal = parsedNom;
+  trx.type = newType ? 'income' : 'expense';
 
   if (typeof saveCloudData === 'function') saveCloudData();
   renderAll();
@@ -681,7 +721,6 @@ function deleteTransaction(id) {
   renderAll();
 }
 
-// 14. Navigasi 4 Tab
 function switchTab(selectedTab) {
   const tabs = ['chat', 'charts', 'goals', 'history'];
   tabs.forEach(t => {
@@ -705,7 +744,6 @@ function switchTab(selectedTab) {
   }
 }
 
-// 15. Diagram Lingkaran
 function initChart() {
   const ctx = document.getElementById('categoryChart');
   if (!ctx) return;
@@ -755,7 +793,6 @@ function updateChartData() {
   }
 }
 
-// 16. OCR VISION RESI & STRUK
 async function handleReceiptUpload(event, mode = 'physical') {
   const file = event.target.files[0];
   if (!file) return;
@@ -834,7 +871,6 @@ KEMBALIKAN HANYA FORMAT JSON PERSIS:
   }
 }
 
-// 17. Ekspor CSV (Aman dari Koma & Kutip Ganda)
 function exportToCSV() {
   const currentList = getFilteredTransactions();
   if (!currentList.length) return alert('Tidak ada transaksi pada periode ini untuk diunduh!');
@@ -850,7 +886,6 @@ function exportToCSV() {
   a.click();
 }
 
-// 18. Ekspor Rekap Visual PDF (Menampilkan Seluruh Transaksi Tanpa Terpotong 15 Baris)
 function exportVisualPDF() {
   const currentList = getFilteredTransactions();
   if (!currentList.length) return alert('Tidak ada data transaksi untuk diekspor ke PDF!');
