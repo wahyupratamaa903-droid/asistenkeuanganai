@@ -15,22 +15,36 @@ window.transactions = [];
 window.monthlyBudget = 2000000;
 window.currentAuthUser = null;
 
-// Pulihkan sesi instan saat halaman di-refresh agar TIDAK PERNAH mental ke layar login
-(function restoreSessionImmediately() {
-  const cachedUser = localStorage.getItem('finai_saved_user');
-  if (cachedUser) {
-    try {
-      const userObj = JSON.parse(cachedUser);
-      if (userObj && userObj.uid) {
-        window.currentAuthUser = userObj;
-        document.addEventListener('DOMContentLoaded', () => {
-          updateUserUI(userObj);
-          loadCloudData(userObj.uid);
-        });
+function getSavedSessionUser() {
+  try {
+    const raw = localStorage.getItem('finai_saved_user');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.uid) return parsed;
+    }
+    // Cek juga jika ada data cloud_<uid> dari login sebelumnya
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('cloud_') && k !== 'cloud_undefined') {
+        const uid = k.replace('cloud_', '');
+        return { uid: uid, displayName: 'Pengguna FinAI', email: '' };
       }
-    } catch (e) {}
+    }
+  } catch (e) {}
+  return null;
+}
+
+// Jalankan seketika saat refresh agar tetap di dalam menu utama
+(function keepUserInsideOnRefresh() {
+  const savedUser = getSavedSessionUser();
+  if (savedUser) {
+    window.currentAuthUser = savedUser;
+    document.addEventListener('DOMContentLoaded', () => {
+      updateUserUI(savedUser);
+      loadCloudData(savedUser.uid);
+    });
   } else if (localStorage.getItem('finai_offline') === 'true') {
-    const offlineUser = { uid: 'offline', displayName: 'Offline', email: 'Lokal' };
+    const offlineUser = { uid: 'offline', displayName: 'Mode Lokal', email: 'Offline' };
     window.currentAuthUser = offlineUser;
     document.addEventListener('DOMContentLoaded', () => {
       updateUserUI(offlineUser);
@@ -39,11 +53,13 @@ window.currentAuthUser = null;
   }
 })();
 
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
 auth.onAuthStateChanged((user) => {
   if (user) {
     const cleanUser = {
       uid: user.uid,
-      displayName: user.displayName || 'User',
+      displayName: user.displayName || 'Pengguna',
       email: user.email || ''
     };
     window.currentAuthUser = cleanUser;
@@ -51,39 +67,34 @@ auth.onAuthStateChanged((user) => {
     updateUserUI(cleanUser);
     loadCloudData(cleanUser.uid);
   } else {
-    // Jangan tendang user ke layar login jika sudah ada sesi tersimpan di HP
-    const cachedUser = localStorage.getItem('finai_saved_user');
-    if (cachedUser) {
-      try {
-        const userObj = JSON.parse(cachedUser);
-        window.currentAuthUser = userObj;
-        updateUserUI(userObj);
-        loadCloudData(userObj.uid);
-        return;
-      } catch (e) {}
+    // Jika refresh membuat Firebase kehilangan token sesaat, JANGAN keluarkan user ke halaman login
+    const savedUser = getSavedSessionUser();
+    if (savedUser) {
+      window.currentAuthUser = savedUser;
+      updateUserUI(savedUser);
+      loadCloudData(savedUser.uid);
+      return;
     }
-
     if (localStorage.getItem('finai_offline') === 'true') {
-      window.currentAuthUser = { uid: 'offline', displayName: 'Offline', email: 'Lokal' };
-      updateUserUI(window.currentAuthUser);
+      const offlineUser = { uid: 'offline', displayName: 'Mode Lokal', email: 'Offline' };
+      window.currentAuthUser = offlineUser;
+      updateUserUI(offlineUser);
       loadCloudData('offline');
-    } else {
-      document.getElementById('login-screen')?.classList.remove('hidden');
-      document.getElementById('main-app')?.classList.add('hidden');
+      return;
     }
+    document.getElementById('login-screen')?.classList.remove('hidden');
+    document.getElementById('main-app')?.classList.add('hidden');
   }
 });
 
 function loginWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
-  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
-    return auth.signInWithPopup(provider);
-  }).then((result) => {
-    if (result && result.user) {
+  auth.signInWithPopup(provider).then((res) => {
+    if (res && res.user) {
       const cleanUser = {
-        uid: result.user.uid,
-        displayName: result.user.displayName || 'User',
-        email: result.user.email || ''
+        uid: res.user.uid,
+        displayName: res.user.displayName || 'Pengguna',
+        email: res.user.email || ''
       };
       localStorage.setItem('finai_saved_user', JSON.stringify(cleanUser));
       window.currentAuthUser = cleanUser;
@@ -98,7 +109,7 @@ function loginWithGoogle() {
 
 function continueOffline() {
   localStorage.setItem('finai_offline', 'true');
-  const offlineUser = { uid: 'offline', displayName: 'Offline', email: 'Lokal' };
+  const offlineUser = { uid: 'offline', displayName: 'Mode Lokal', email: 'Offline' };
   localStorage.setItem('finai_saved_user', JSON.stringify(offlineUser));
   window.currentAuthUser = offlineUser;
   updateUserUI(offlineUser);
@@ -106,88 +117,78 @@ function continueOffline() {
 }
 
 function logoutGoogle() {
-  if (confirm('Keluar dari akun?')) {
+  if (confirm('Yakin ingin keluar dari akun?')) {
     localStorage.removeItem('finai_offline');
     localStorage.removeItem('finai_saved_user');
-    sessionStorage.removeItem('finai_session_unlocked');
     auth.signOut().finally(() => window.location.reload());
   }
 }
 
 function updateUserUI(user) {
+  if (!user) return;
+  localStorage.setItem('finai_saved_user', JSON.stringify({
+    uid: user.uid,
+    displayName: user.displayName || 'Pengguna',
+    email: user.email || ''
+  }));
   document.getElementById('login-screen')?.classList.add('hidden');
   document.getElementById('main-app')?.classList.remove('hidden');
   const nameEl = document.getElementById('user-display-name');
   const emailEl = document.getElementById('user-display-email');
-  if (nameEl) nameEl.textContent = user.displayName || 'User';
-  if (emailEl) emailEl.textContent = user.email || '';
+  if (nameEl && user.displayName) nameEl.textContent = user.displayName;
+  if (emailEl && user.email) emailEl.textContent = user.email;
 }
 
-// Otomatis perbaiki transaksi "Saldo cash..." yang salah tercatat sebagai pengeluaran (minus)
-function healMistakenBalanceTransactions(list) {
-  if (!Array.isArray(list)) return { list: [], changed: false };
-  let changed = false;
-  const fixed = list.map(t => {
-    const desc = String(t.description || '').toLowerCase();
-    if (t.type === 'expense' && /^(saldo|uang\s+cash|uang\s+tunai|kas\s+tunai|modal\s+awal)/i.test(desc)) {
-      changed = true;
+// Perbaiki otomatis semua transaksi "Saldo cash..." yang tadinya minus (expense) menjadi positif (income)
+function fixNegativeBalanceBug(list) {
+  if (!Array.isArray(list)) return { list: [], fixed: false };
+  let fixed = false;
+  const cleaned = list.map(t => {
+    const d = String(t.description || '').toLowerCase();
+    if (t.type === 'expense' && /(saldo|uang\s+cash|uang\s+tunai|modal\s+awal|kas\s+awal)/i.test(d)) {
+      fixed = true;
       return Object.assign({}, t, {
+        description: 'Saldo Awal Cash',
         type: 'income',
-        category: 'Gaji & Pendapatan'
+        category: 'Saldo Awal & Kas'
       });
     }
     return t;
   });
-  return { list: fixed, changed };
+  return { list: cleaned, fixed };
 }
 
 async function loadCloudData(uid) {
-  let localUpdatedAt = 0;
   const saved = localStorage.getItem(`cloud_${uid}`);
   if (saved) {
     try {
       const p = JSON.parse(saved);
-      const healed = healMistakenBalanceTransactions(p.transactions || []);
-      window.transactions = healed.list;
+      const res = fixNegativeBalanceBug(p.transactions || []);
+      window.transactions = res.list;
       window.monthlyBudget = p.monthlyBudget || 2000000;
-      localUpdatedAt = p.updatedAt || 0;
       if (p.goals) window.goals = p.goals;
-      if (healed.changed) saveCloudData();
+      if (res.fixed) saveCloudData();
     } catch (e) {}
   }
+
   if (typeof renderAll === 'function') renderAll();
   if (typeof initChart === 'function') initChart();
+  if (typeof checkInitialBalancePrompt === 'function') checkInitialBalancePrompt();
 
   if (db && uid !== 'offline') {
     try {
       const doc = await db.collection('users').doc(uid).get();
       if (doc.exists) {
         const data = doc.data();
-        const cloudUpdatedAt = data.updatedAt || 0;
-        if (Array.isArray(data.transactions) && (cloudUpdatedAt > localUpdatedAt || window.transactions.length === 0)) {
-          const healed = healMistakenBalanceTransactions(data.transactions);
-          window.transactions = healed.list;
+        if (Array.isArray(data.transactions) && window.transactions.length === 0 && data.transactions.length > 0) {
+          const res = fixNegativeBalanceBug(data.transactions);
+          window.transactions = res.list;
           window.monthlyBudget = data.monthlyBudget || 2000000;
-          if (Array.isArray(data.goals)) {
-            window.goals = data.goals;
-            localStorage.setItem('finai_goals_v1', JSON.stringify(window.goals));
-          }
-          if (healed.changed) {
-            saveCloudData();
-          } else {
-            localStorage.setItem(`cloud_${uid}`, JSON.stringify({
-              transactions: window.transactions,
-              monthlyBudget: window.monthlyBudget,
-              goals: window.goals,
-              updatedAt: cloudUpdatedAt || Date.now()
-            }));
-          }
+          saveCloudData();
           if (typeof renderAll === 'function') renderAll();
         }
       }
-    } catch (e) {
-      console.warn('Menggunakan data lokal:', e.message);
-    }
+    } catch (e) {}
   }
 }
 

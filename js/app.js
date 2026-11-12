@@ -10,12 +10,13 @@ window.goals = JSON.parse(localStorage.getItem('finai_goals_v1') || '[]');
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('/sw.js?v=' + Date.now()).catch(() => {});
   });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   initSpeechRecognition();
+  injectManualBalanceUI();
 });
 
 function escapeHtml(str) {
@@ -31,6 +32,138 @@ function formatChatHtml(text) {
   return escapeHtml(text).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
 }
 
+// ================= FITUR INPUT SALDO AWAL / SAAT INI MANUAL =================
+function injectManualBalanceUI() {
+  const balEl = document.getElementById('stat-balance');
+  if (balEl && !document.getElementById('btn-edit-balance')) {
+    const btn = document.createElement('button');
+    btn.id = 'btn-edit-balance';
+    btn.type = 'button';
+    btn.onclick = () => openManualBalanceModal();
+    btn.style.cssText = 'margin-top:8px; background:rgba(16,185,129,0.2); border:1px solid #10b981; color:#34d399; padding:5px 12px; border-radius:8px; font-size:11px; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;';
+    btn.innerHTML = '✏️ Atur Saldo Cash Manual';
+    balEl.parentElement.appendChild(btn);
+  }
+
+  if (!document.getElementById('manual-balance-modal')) {
+    const modal = document.createElement('div');
+    modal.id = 'manual-balance-modal';
+    modal.style.cssText = 'display:none; position:fixed; inset:0; z-index:100005; background:rgba(9,13,24,0.88); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:16px; font-family:system-ui,sans-serif;';
+    modal.innerHTML = `
+      <div style="background:#131b2e; border:1px solid #10b981; border-radius:18px; max-width:400px; width:100%; padding:20px; color:#f8fafc; box-shadow:0 20px 40px rgba(0,0,0,0.7);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h3 style="margin:0; font-size:16px; color:#10b981; font-weight:800;">💰 Atur Saldo Cash Saat Ini</h3>
+          <button type="button" onclick="closeManualBalanceModal()" style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;">✕</button>
+        </div>
+        <p style="font-size:12px; color:#94a3b8; margin:0 0 14px 0; line-height:1.5;">
+          Masukkan uang cash yang Anda pegang saat ini. Nanti setiap Anda mencatat pengeluaran (contoh: <b>"beli minum 10.000"</b>), saldo ini otomatis langsung berkurang.
+        </p>
+        <input type="number" id="manual-balance-input" placeholder="Contoh: 1000000" style="width:100%; box-sizing:border-box; background:#0f172a; border:1px solid #334155; color:#fff; padding:12px; border-radius:10px; font-size:16px; font-weight:700; margin-bottom:10px;">
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-bottom:14px;">
+          <button type="button" onclick="document.getElementById('manual-balance-input').value=500000" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:7px; border-radius:8px; font-size:11px; cursor:pointer;">Rp 500rb</button>
+          <button type="button" onclick="document.getElementById('manual-balance-input').value=1000000" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:7px; border-radius:8px; font-size:11px; cursor:pointer;">Rp 1 Juta</button>
+          <button type="button" onclick="document.getElementById('manual-balance-input').value=2000000" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:7px; border-radius:8px; font-size:11px; cursor:pointer;">Rp 2 Juta</button>
+        </div>
+        <button type="button" onclick="saveManualBalance()" style="width:100%; background:#10b981; color:#052e16; border:none; padding:12px; border-radius:10px; font-weight:800; font-size:13px; cursor:pointer;">
+          ✅ Simpan Saldo Sekarang
+        </button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+}
+
+function openManualBalanceModal() {
+  injectManualBalanceUI();
+  const modal = document.getElementById('manual-balance-modal');
+  const input = document.getElementById('manual-balance-input');
+  let inc = 0, exp = 0;
+  (window.transactions || []).forEach(t => {
+    if (t.type === 'income') inc += t.nominal;
+    else exp += t.nominal;
+  });
+  const cur = inc - exp;
+  if (input) input.value = cur > 0 ? cur : '';
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeManualBalanceModal() {
+  const modal = document.getElementById('manual-balance-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function checkInitialBalancePrompt() {
+  injectManualBalanceUI();
+  const list = window.transactions || [];
+  let inc = 0, exp = 0;
+  list.forEach(t => {
+    if (t.type === 'income') inc += t.nominal;
+    else exp += t.nominal;
+  });
+  // Jika pengguna baru masuk dan belum punya saldo sama sekali, munculkan pop-up input saldo awal
+  if (list.length === 0 && !sessionStorage.getItem('finai_prompted_balance')) {
+    sessionStorage.setItem('finai_prompted_balance', 'true');
+    setTimeout(() => openManualBalanceModal(), 500);
+  }
+}
+
+function setExactCashBalance(targetNominal) {
+  const target = Math.round(parseFloat(targetNominal) || 0);
+  // Hapus transaksi penyesuaian/saldo awal lama agar rapi dan tidak menumpuk
+  window.transactions = (window.transactions || []).filter(t => {
+    const d = String(t.description || '').toLowerCase();
+    return !(/(saldo\s+awal|saldo\s+cash|uang\s+cash\s+sekarang|penyesuaian\s+saldo)/i.test(d));
+  });
+
+  // Hitung total pengeluaran belanja yang sudah pernah dilakukan
+  let existingInc = 0, existingExp = 0;
+  window.transactions.forEach(t => {
+    if (t.type === 'income') existingInc += t.nominal;
+    else existingExp += t.nominal;
+  });
+
+  // Agar Saldo Bersih saat ini persis = targetNominal, maka Saldo Awal = targetNominal + existingExp - existingInc
+  const neededIncome = target + existingExp - existingInc;
+  if (neededIncome > 0) {
+    const now = Date.now();
+    window.transactions.push({
+      id: now,
+      timestamp: now,
+      date: new Date(now).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+      description: 'Saldo Awal Cash',
+      type: 'income',
+      category: 'Gaji & Pendapatan',
+      nominal: neededIncome
+    });
+  } else if (neededIncome < 0) {
+    const now = Date.now();
+    window.transactions.unshift({
+      id: now,
+      timestamp: now,
+      date: new Date(now).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+      description: 'Penyesuaian Saldo Cash',
+      type: 'expense',
+      category: 'Lainnya',
+      nominal: Math.abs(neededIncome)
+    });
+  }
+
+  if (typeof saveCloudData === 'function') saveCloudData();
+  renderAll();
+}
+
+function saveManualBalance() {
+  const input = document.getElementById('manual-balance-input');
+  const val = cleanNominal(input ? input.value : 0);
+  if (!val || val < 0) {
+    return alert('Masukkan nominal saldo cash yang valid (contoh: 1000000).');
+  }
+  setExactCashBalance(val);
+  closeManualBalanceModal();
+  appendChatMessage('assistant', `✅ **Saldo Cash Berhasil Diatur!**\n• **Saldo Cash Saat Ini:** Rp ${val.toLocaleString('id-ID')}\n\nSekarang silakan ketik atau ucapkan pengeluaran Anda (contoh: **"beli minum 10.000"**), maka saldo akan otomatis langsung berkurang.`);
+}
+
+// 1. Kompresi Gambar Otomatis via Canvas
 function compressImage(file, maxDimension = 1024, quality = 0.8) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -65,6 +198,7 @@ function compressImage(file, maxDimension = 1024, quality = 0.8) {
   });
 }
 
+// 2. Pembersih Angka Nominal
 function cleanNominal(val) {
   if (typeof val === 'number') return val;
   if (!val) return 0;
@@ -93,6 +227,7 @@ function cleanNominal(val) {
   return num;
 }
 
+// 3. Multi-Provider AI
 async function callMultiProviderAI(messages, isVision = false) {
   const routes = isVision ? [
     {
@@ -100,24 +235,6 @@ async function callMultiProviderAI(messages, isVision = false) {
       key: KEY_NVIDIA,
       model: 'meta/llama-3.2-11b-vision-instruct',
       headers: { 'Content-Type': 'application/json' }
-    },
-    {
-      url: 'https://integrate.api.nvidia.com/v1/chat/completions',
-      key: KEY_NVIDIA,
-      model: 'meta/llama-3.2-90b-vision-instruct',
-      headers: { 'Content-Type': 'application/json' }
-    },
-    {
-      url: 'https://openrouter.ai/api/v1/chat/completions',
-      key: KEY_OPENROUTER,
-      model: 'meta-llama/llama-3.2-11b-vision-instruct',
-      headers: { 'Content-Type': 'application/json', 'HTTP-Referer': window.location.href, 'X-Title': 'FinAI' }
-    },
-    {
-      url: 'https://openrouter.ai/api/v1/chat/completions',
-      key: KEY_OPENROUTER,
-      model: 'qwen/qwen-2.5-vl-72b-instruct',
-      headers: { 'Content-Type': 'application/json', 'HTTP-Referer': window.location.href, 'X-Title': 'FinAI' }
     },
     {
       url: 'https://openrouter.ai/api/v1/chat/completions',
@@ -137,22 +254,13 @@ async function callMultiProviderAI(messages, isVision = false) {
       key: KEY_OPENROUTER,
       model: 'google/gemini-2.0-flash-001',
       headers: { 'Content-Type': 'application/json', 'HTTP-Referer': window.location.href, 'X-Title': 'FinAI' }
-    },
-    {
-      url: 'https://openrouter.ai/api/v1/chat/completions',
-      key: KEY_OPENROUTER,
-      model: 'meta-llama/llama-3.3-70b-instruct',
-      headers: { 'Content-Type': 'application/json', 'HTTP-Referer': window.location.href, 'X-Title': 'FinAI' }
     }
   ];
 
   let lastError = null;
   for (const route of routes) {
     try {
-      const headers = Object.assign({
-        'Authorization': `Bearer ${route.key.trim()}`
-      }, route.headers);
-
+      const headers = Object.assign({ 'Authorization': `Bearer ${route.key.trim()}` }, route.headers);
       const res = await fetch(route.url, {
         method: 'POST',
         headers: headers,
@@ -163,14 +271,11 @@ async function callMultiProviderAI(messages, isVision = false) {
           temperature: isVision ? 0.1 : 0.7
         })
       });
-
       const data = await res.json();
       if (data.choices && data.choices[0] && data.choices[0].message) {
         return data.choices[0].message.content;
       }
-      if (data.error) {
-        lastError = data.error.message || JSON.stringify(data.error);
-      }
+      if (data.error) lastError = data.error.message || JSON.stringify(data.error);
     } catch (err) {
       lastError = err.message;
     }
@@ -185,9 +290,7 @@ function getFilteredTransactions() {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-  if (window.currentPeriod === 'today') {
-    return list.filter(t => (t.timestamp || t.id) >= startOfToday);
-  }
+  if (window.currentPeriod === 'today') return list.filter(t => (t.timestamp || t.id) >= startOfToday);
   if (window.currentPeriod === 'week') {
     const dayOfWeek = now.getDay() || 7;
     const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek + 1).getTime();
@@ -206,11 +309,9 @@ function setPeriod(period) {
   periods.forEach(p => {
     const btn = document.getElementById(`period-btn-${p}`);
     if (btn) {
-      if (p === period) {
-        btn.className = 'flex-1 py-1 rounded-lg text-emerald-400 bg-emerald-950/70 border border-emerald-800/80 font-bold transition text-center';
-      } else {
-        btn.className = 'flex-1 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition text-center';
-      }
+      btn.className = (p === period)
+        ? 'flex-1 py-1 rounded-lg text-emerald-400 bg-emerald-950/70 border border-emerald-800/80 font-bold transition text-center'
+        : 'flex-1 py-1 rounded-lg text-slate-400 hover:text-slate-200 transition text-center';
     }
   });
   renderAll();
@@ -266,7 +367,6 @@ function extractNominalFromText(rawText) {
   return Math.round(nominal || 0);
 }
 
-// Parser Cerdas (Membedakan Atur Saldo Cash, Pemasukan, dan Pengeluaran)
 function parseNaturalLanguage(rawText) {
   const normalized = normalizeIndonesianWords(rawText);
   const lower = normalized.toLowerCase().trim();
@@ -274,38 +374,36 @@ function parseNaturalLanguage(rawText) {
 
   if (!nominal || nominal <= 0) return null;
 
-  // 1. Deteksi perintah mengatur ulang total saldo cash ("saldo cash sekarang 1 juta", "uang cash sekarang 500rb", "ubah saldo jadi 2 juta")
-  const isSetBalance = /(?:saldo|uang\s+cash|uang\s+tunai|kas)\s+(?:cash\s+|tunai\s+)?(?:sekarang|saat\s+ini|jadi|adalah|sisa)|(?:atur|ubah|set|ganti)\s+(?:saldo|uang\s+cash)/i.test(lower);
-  if (isSetBalance) {
+  // Jika kalimat menyebutkan "saldo", "uang cash", "uang tunai", "uangku sekarang" -> langsung atur sebagai Saldo Cash Positif!
+  const isBalanceCommand = /(saldo|uang\s*cash|uang\s*tunai|uang\s*sekarang|uangku\s*sekarang|kas\s*sekarang|modal\s*awal)/i.test(lower) && !/\b(beli|bayar|jajan|belanja)\b/i.test(lower);
+  if (isBalanceCommand) {
     return {
       isSetBalance: true,
       targetBalance: nominal,
-      description: 'Saldo Cash Tunai',
+      description: 'Saldo Awal Cash',
       nominal: nominal,
       type: 'income',
       category: 'Gaji & Pendapatan'
     };
   }
 
-  // 2. Deteksi kata kunci Pemasukan (termasuk saldo, uang cash, modal, punya uang, dikasih, dll)
-  const expenseVerbs = /\b(beli|bayar|isi|buat|untuk|beliin|jajan|belanja|habis|keluar|potong|tarik\s+biaya)\b/i;
+  const expenseVerbs = /\b(beli|bayar|isi|buat|untuk|beliin|jajan|belanja|habis|keluar)\b/i;
   const incomeKeywords = [
     'gaji', 'gajian', 'income', 'masuk', 'cair', 'dapat', 'dikasih', 'bonus',
-    'profit', 'dividen', 'thr', 'saldo', 'uang cash', 'uang tunai', 'kas tunai',
-    'modal', 'punya uang', 'ada uang', 'pegang uang', 'uang saku', 'kiriman',
-    'dikirimin', 'terima', 'jual', 'penjualan', 'untung', 'laba', 'kembalian', 'refund'
+    'profit', 'dividen', 'thr', 'modal', 'punya uang', 'ada uang', 'kiriman',
+    'dikirimin', 'terima', 'penjualan', 'untung', 'laba', 'refund'
   ];
 
   let type = 'expense', category = 'Lainnya';
 
-  if (incomeKeywords.some(kw => lower.includes(kw)) && !expenseVerbs.test(lower) && !lower.includes('setor') && !lower.includes('kirim ke')) {
+  if (incomeKeywords.some(kw => lower.includes(kw)) && !expenseVerbs.test(lower) && !lower.includes('setor')) {
     type = 'income';
     category = 'Gaji & Pendapatan';
   } else {
     if (/setor|orang tua|ortu|ibu|ayah|mama|papa|keluarga|transfer/i.test(lower)) category = 'Keluarga & Transfer';
-    else if (/kopi|coffee|makan|minum|resto|warteg|jajan|sarapan|lunch|dinner|nasi|mie|bakso|ayam|goreng|sate|roti/i.test(lower)) category = 'Makanan & Minuman';
+    else if (/kopi|coffee|makan|minum|air|es|teh|jus|resto|warteg|jajan|sarapan|lunch|dinner|nasi|mie|bakso|ayam|goreng|sate|roti|snack|cemilan/i.test(lower)) category = 'Makanan & Minuman';
     else if (/bensin|pertalite|pertamax|parkir|gojek|grab|ojol|tol|angkot|kereta|servis|service|oli|motor|mobil/i.test(lower)) category = 'Transportasi';
-    else if (/listrik|token|pln|pdam|air|wifi|internet|pulsa|kuota|sewa|kos|kontrakan|bpjs|tagihan|cicilan/i.test(lower)) category = 'Tagihan & Utilitas';
+    else if (/listrik|token|pln|pdam|wifi|internet|pulsa|kuota|sewa|kos|kontrakan|bpjs|tagihan|cicilan/i.test(lower)) category = 'Tagihan & Utilitas';
     else if (/belanja|shopee|tokopedia|tiktok|baju|celana|sepatu|skincare|supermarket|indomaret|alfamart|sabun/i.test(lower)) category = 'Belanja Harian';
     else if (/nonton|bioskop|game|topup|steam|netflix|spotify|karaoke|liburan|wisata/i.test(lower)) category = 'Hiburan & Santai';
     else if (/obat|apotek|dokter|vitamin|klinik|rs|rumah sakit|sehat/i.test(lower)) category = 'Kesehatan';
@@ -354,6 +452,15 @@ function recordTransaction(item) {
   return trx;
 }
 
+function getCurrentTotalBalance() {
+  let inc = 0, exp = 0;
+  (window.transactions || []).forEach(t => {
+    if (t.type === 'income') inc += t.nominal;
+    else exp += t.nominal;
+  });
+  return inc - exp;
+}
+
 async function handleUserInput(e) {
   if (e) e.preventDefault();
   const inputEl = document.getElementById('chat-input');
@@ -366,45 +473,15 @@ async function handleUserInput(e) {
   const parsedList = parseMultipleTransactions(text);
   if (parsedList.length > 0) {
     const messages = parsedList.map(item => {
-      // Jika pengguna mengatur ulang saldo cash ("saldo cash sekarang 1 juta")
       if (item.isSetBalance) {
-        // Bersihkan transaksi pengeluaran salah sebelumnya yang bernama "Saldo cash..."
-        window.transactions = (window.transactions || []).filter(t =>
-          !(t.type === 'expense' && /^(saldo|uang\s+cash)/i.test(t.description))
-        );
-        let inc = 0, exp = 0;
-        window.transactions.forEach(t => {
-          if (t.type === 'income') inc += t.nominal;
-          else exp += t.nominal;
-        });
-        const currentBal = inc - exp;
-        const diff = item.targetBalance - currentBal;
-
-        if (diff === 0) {
-          renderAll();
-          return `✅ **Saldo Cash Sudah Sesuai!**\n• **Total Saldo Cash:** Rp ${item.targetBalance.toLocaleString('id-ID')}`;
-        } else if (diff > 0) {
-          const trx = recordTransaction({
-            description: currentBal === 0 ? 'Saldo Kas Tunai' : 'Penyesuaian Saldo Masuk',
-            nominal: diff,
-            type: 'income',
-            category: 'Gaji & Pendapatan'
-          });
-          return `✅ **Saldo Cash Diperbarui!**\n• **Item:** ${trx.description}\n• **Tipe:** Pemasukan (+Rp ${diff.toLocaleString('id-ID')})\n• **Total Saldo Cash Sekarang:** Rp ${item.targetBalance.toLocaleString('id-ID')}`;
-        } else {
-          const trx = recordTransaction({
-            description: 'Penyesuaian Saldo Keluar',
-            nominal: Math.abs(diff),
-            type: 'expense',
-            category: 'Lainnya'
-          });
-          return `✅ **Saldo Cash Diperbarui!**\n• **Item:** ${trx.description}\n• **Penyesuaian:** -Rp ${Math.abs(diff).toLocaleString('id-ID')}\n• **Total Saldo Cash Sekarang:** Rp ${item.targetBalance.toLocaleString('id-ID')}`;
-        }
+        setExactCashBalance(item.targetBalance);
+        return `✅ **Saldo Cash Diatur!**\n• **Saldo Cash Saat Ini:** Rp ${item.targetBalance.toLocaleString('id-ID')}`;
       }
 
       const trx = recordTransaction(item);
-      const typeLabel = trx.type === 'income' ? 'Pemasukan' : 'Pengeluaran';
-      return `✅ **${typeLabel} Dicatat!**\n• **Item:** ${trx.description}\n• **Kategori:** ${trx.category}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}`;
+      const sisaSaldo = getCurrentTotalBalance();
+      const typeLabel = trx.type === 'income' ? 'Pemasukan (+)' : 'Pengeluaran (-)';
+      return `✅ **${typeLabel} Dicatat!**\n• **Item:** ${trx.description}\n• **Kategori:** ${trx.category}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}\n• **Sisa Saldo Cash:** Rp ${sisaSaldo.toLocaleString('id-ID')}`;
     });
     appendChatMessage('assistant', messages.join('\n\n'));
   } else {
@@ -516,6 +593,7 @@ function renderSummary() {
   document.getElementById('stat-balance').textContent = `Rp ${(inc - exp).toLocaleString('id-ID')}`;
   document.getElementById('stat-income').textContent = `Rp ${inc.toLocaleString('id-ID')}`;
   document.getElementById('stat-expense').textContent = `Rp ${exp.toLocaleString('id-ID')}`;
+  injectManualBalanceUI();
 }
 
 function renderGoals() {
@@ -688,7 +766,7 @@ function renderHistoryTable() {
         <div>${escapeHtml(t.description)}</div>
         <div class="text-[9px] font-normal text-slate-400">${escapeHtml(t.category)}</div>
       </td>
-      <td class="p-2.5 text-right font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}">Rp ${t.nominal.toLocaleString('id-ID')}</td>
+      <td class="p-2.5 text-right font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}">${t.type === 'income' ? '+' : '-'}Rp ${t.nominal.toLocaleString('id-ID')}</td>
       <td class="p-2.5 text-center whitespace-nowrap">
         <button onclick="editTransaction(${t.id})" title="Edit" class="text-slate-500 hover:text-emerald-400 transition p-1 mr-1"><i class="fas fa-edit"></i></button>
         <button onclick="deleteTransaction(${t.id})" title="Hapus" class="text-slate-600 hover:text-rose-400 transition p-1"><i class="fas fa-trash"></i></button>
@@ -803,16 +881,9 @@ async function handleReceiptUpload(event, mode = 'physical') {
 
   try {
     const base64Img = await compressImage(file, 1024, 0.8);
-
     const promptText = mode === 'digital'
-      ? `Anda adalah OCR pembaca bukti transfer / QRIS / screenshot E-Wallet Indonesia (DANA, GoPay, OVO, ShopeePay, BCA, BRImo, Mandiri).
-1. Temukan nama penerima / merchant / toko tujuan.
-2. Temukan TOTAL NOMINAL transaksi uang (angka bulat).
-3. Tentukan type: 'expense' (keluar/transfer) atau 'income' (uang masuk/terima).
-4. Tentukan category: Makanan & Minuman / Transportasi / Tagihan & Utilitas / Belanja Harian / Hiburan & Santai / Keluarga & Transfer / Kesehatan / Lainnya.
-KEMBALIKAN HANYA FORMAT JSON PERSIS:
-{"description": "Nama Merchant / Penerima", "nominal": 50000, "type": "expense", "category": "Keluarga & Transfer"}`
-      : `Ekstrak nama toko dan TOTAL AKHIR belanja dari foto struk ini. Kembalikan format JSON persis: {"description": "Nama Toko", "nominal": 25000, "type": "expense", "category": "Belanja Harian"}`;
+      ? `Anda adalah OCR pembaca bukti transfer / QRIS / E-Wallet Indonesia. Kembalikan JSON persis: {"description": "Nama Merchant / Penerima", "nominal": 50000, "type": "expense", "category": "Keluarga & Transfer"}`
+      : `Ekstrak nama toko dan TOTAL AKHIR belanja dari foto struk ini. Kembalikan JSON persis: {"description": "Nama Toko", "nominal": 25000, "type": "expense", "category": "Belanja Harian"}`;
 
     const rawContent = await callMultiProviderAI([{
       role: 'user',
@@ -841,25 +912,11 @@ KEMBALIKAN HANYA FORMAT JSON PERSIS:
       } catch (err) {}
     }
 
-    if (!detected) {
-      const numMatch = rawContent.match(/(?:Rp\.?|Total|Nominal|IDR|Sebesar|Rp\s*)?\s*([\d\.,]{4,})/i);
-      if (numMatch) {
-        const nom = cleanNominal(numMatch[1]);
-        if (nom > 0) {
-          detected = {
-            description: mode === 'digital' ? 'Transfer / Resi Digital' : 'Struk Kasir',
-            nominal: nom,
-            type: 'expense',
-            category: mode === 'digital' ? 'Keluarga & Transfer' : 'Belanja Harian'
-          };
-        }
-      }
-    }
-
     if (detected && detected.nominal > 0) {
       const trx = recordTransaction(detected);
+      const sisa = getCurrentTotalBalance();
       const badge = mode === 'digital' ? '📱 Resi Digital' : '🧾 Struk Kasir';
-      appendChatMessage('assistant', `✅ **${badge} Terdeteksi!**\n• **Item:** ${trx.description}\n• **Kategori:** ${trx.category}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}`);
+      appendChatMessage('assistant', `✅ **${badge} Terdeteksi!**\n• **Item:** ${trx.description}\n• **Kategori:** ${trx.category}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}\n• **Sisa Saldo Cash:** Rp ${sisa.toLocaleString('id-ID')}`);
     } else {
       appendChatMessage('assistant', '⚠️ Gagal membaca nominal pada gambar. Pastikan bagian total nominal terlihat jelas.');
     }
@@ -900,32 +957,17 @@ function exportVisualPDF() {
     }
   });
   const balance = inc - exp;
-  const periodLabels = {
-    today: 'Hari Ini',
-    week: 'Minggu Ini',
-    month: 'Bulan Ini',
-    all: 'Semua Waktu'
-  };
+  const periodLabels = { today: 'Hari Ini', week: 'Minggu Ini', month: 'Bulan Ini', all: 'Semua Waktu' };
   const userName = document.getElementById('user-display-name')?.textContent || 'Pengguna';
   const currentDate = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   let topExpensesHtml = '';
-  const sortedExp = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
-  sortedExp.forEach(([cat, nom]) => {
+  Object.entries(catTotals).sort((a, b) => b[1] - a[1]).forEach(([cat, nom]) => {
     const pct = exp > 0 ? Math.round((nom / exp) * 100) : 0;
-    topExpensesHtml += `
-      <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:11px;">
-        <span><b>${escapeHtml(cat)}</b> (${pct}%)</span>
-        <span>Rp ${nom.toLocaleString('id-ID')}</span>
-      </div>
-    `;
+    topExpensesHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:11px;"><span><b>${escapeHtml(cat)}</b> (${pct}%)</span><span>Rp ${nom.toLocaleString('id-ID')}</span></div>`;
   });
 
   const tempContainer = document.createElement('div');
-  tempContainer.style.padding = '24px';
-  tempContainer.style.background = '#ffffff';
-  tempContainer.style.color = '#0f172a';
-  tempContainer.style.fontFamily = 'Arial, sans-serif';
-
+  tempContainer.style.cssText = 'padding:24px; background:#ffffff; color:#0f172a; font-family:Arial,sans-serif;';
   tempContainer.innerHTML = `
     <div style="border-bottom: 2px solid #10b981; padding-bottom: 12px; margin-bottom: 16px; display:flex; justify-content:space-between; align-items:center;">
       <div>
@@ -937,7 +979,6 @@ function exportVisualPDF() {
         <div>Dicetak: ${currentDate}</div>
       </div>
     </div>
-
     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px;">
       <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 8px;">
         <span style="font-size: 9px; color: #166534; text-transform: uppercase;">Saldo Bersih</span>
@@ -952,12 +993,10 @@ function exportVisualPDF() {
         <div style="font-size: 13px; font-weight: bold; color: #be123c; margin-top: 3px;">Rp ${exp.toLocaleString('id-ID')}</div>
       </div>
     </div>
-
     <div style="margin-bottom: 20px;">
       <h3 style="font-size: 12px; margin: 0 0 8px 0; color: #334155; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Rincian Pengeluaran per Kategori</h3>
       ${topExpensesHtml || '<p style="font-size:11px; color:#94a3b8;">Tidak ada pengeluaran.</p>'}
     </div>
-
     <div>
       <h3 style="font-size: 12px; margin: 0 0 8px 0; color: #334155; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">Daftar Transaksi (${currentList.length} Entri)</h3>
       <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
@@ -983,13 +1022,11 @@ function exportVisualPDF() {
     </div>
   `;
 
-  const opt = {
+  html2pdf().set({
     margin: 8,
     filename: `Rekap_FinAI_${window.currentPeriod}_${Date.now()}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
-
-  html2pdf().set(opt).from(tempContainer).save();
+  }).from(tempContainer).save();
 }

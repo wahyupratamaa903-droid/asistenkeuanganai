@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finai-cache-v5';
+const CACHE_NAME = 'finai-cache-v9';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -6,21 +6,17 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(keys.map((k) => caches.delete(k)));
-    })
+    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
   );
   self.clients.claim();
 });
 
 self.addEventListener('fetch', (e) => {
-  // Lewati request non-GET (seperti POST ke AI / Firebase) agar tidak error
   if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) {
     return;
   }
-
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: 'no-store' })
       .then((response) => {
         if (response && response.status === 200) {
           const clone = response.clone();
@@ -31,4 +27,3 @@ self.addEventListener('fetch', (e) => {
       .catch(() => caches.match(e.request))
   );
 });
-// fix-session-and-balance 1794461350
