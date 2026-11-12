@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finai-cache-v1794462279';
+const CACHE_NAME = 'finai-cache-v1794463895';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
