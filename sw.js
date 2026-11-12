@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finai-cache-v1794463895';
+const CACHE_NAME = 'finai-cache-v1794464406';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -28,3 +28,4 @@ self.addEventListener('fetch', (e) => {
   );
 });
 // ai-multi-provider 1794462279
+// fix-app-js-syntax 1794464406

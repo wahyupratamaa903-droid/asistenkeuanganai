@@ -1,8 +1,3 @@
-const KEY_NVIDIA = atob("bnZhcGktM0JfNzh2WHZXVW1jdDYzQTNZVHBFZ1dMUnQ4Z2Z3QXZuSi1wR3dmQjR2WXowWVN2Q3M2SHc1VnpuOTlROUdvaw==");
-const KEY_OPENROUTER = atob("c2stb3ItdjEtOTJjMjU3ZTRkZDIxYzkyMjQxNjkwMmNiODVkYzE0ZDc0ZmQ0ZDRjNmI2MzcxNjA1ZmI2MWUwNTlhMDgyMzUzMg==");
-const KEY_CLOUDFLARE = atob("Y2Z1dF9YOEw1QkhZWk1IUHhHeDlaQm9Gbjg5VHdYdEtEM1d2ME1LUnBQem15MjUzN2U3ZDI=");
-const KEY_BYTEPLUS = atob("YXJrLWViMDk0NjcxLWQ4ZDQtNDZjOC04ZGM4LWVhMTFjNDc3Mjg2NC03NzUyZA==");
-
 window.chartInstance = null;
 window.recognition = null;
 window.currentPeriod = 'all';
@@ -17,6 +12,11 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('DOMContentLoaded', () => {
   initSpeechRecognition();
   injectManualBalanceUI();
+  if (window.currentAuthUser && typeof loadCloudData === 'function') {
+    loadCloudData(window.currentAuthUser.uid);
+  } else {
+    renderAll();
+  }
 });
 
 function escapeHtml(str) {
@@ -28,11 +28,11 @@ function escapeHtml(str) {
 }
 
 function formatChatHtml(text) {
-  if (text.includes('<span class="animate-pulse">')) return text;
+  if (String(text).includes('<span class="animate-pulse">')) return text;
   return escapeHtml(text).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
 }
 
-// ================= FITUR INPUT SALDO AWAL / SAAT INI MANUAL =================
+// ================= FITUR INPUT SALDO CASH MANUAL =================
 function injectManualBalanceUI() {
   const balEl = document.getElementById('stat-balance');
   if (balEl && !document.getElementById('btn-edit-balance')) {
@@ -77,12 +77,7 @@ function openManualBalanceModal() {
   injectManualBalanceUI();
   const modal = document.getElementById('manual-balance-modal');
   const input = document.getElementById('manual-balance-input');
-  let inc = 0, exp = 0;
-  (window.transactions || []).forEach(t => {
-    if (t.type === 'income') inc += t.nominal;
-    else exp += t.nominal;
-  });
-  const cur = inc - exp;
+  const cur = getCurrentTotalBalance();
   if (input) input.value = cur > 0 ? cur : '';
   if (modal) modal.style.display = 'flex';
 }
@@ -94,38 +89,24 @@ function closeManualBalanceModal() {
 
 function checkInitialBalancePrompt() {
   injectManualBalanceUI();
-  const list = window.transactions || [];
-  let inc = 0, exp = 0;
-  list.forEach(t => {
-    if (t.type === 'income') inc += t.nominal;
-    else exp += t.nominal;
-  });
-  // Jika pengguna baru masuk dan belum punya saldo sama sekali, munculkan pop-up input saldo awal
-  if (list.length === 0 && !sessionStorage.getItem('finai_prompted_balance')) {
-    sessionStorage.setItem('finai_prompted_balance', 'true');
-    setTimeout(() => openManualBalanceModal(), 500);
-  }
 }
 
 function setExactCashBalance(targetNominal) {
   const target = Math.round(parseFloat(targetNominal) || 0);
-  // Hapus transaksi penyesuaian/saldo awal lama agar rapi dan tidak menumpuk
   window.transactions = (window.transactions || []).filter(t => {
     const d = String(t.description || '').toLowerCase();
     return !(/(saldo\s+awal|saldo\s+cash|uang\s+cash\s+sekarang|penyesuaian\s+saldo)/i.test(d));
   });
 
-  // Hitung total pengeluaran belanja yang sudah pernah dilakukan
   let existingInc = 0, existingExp = 0;
   window.transactions.forEach(t => {
     if (t.type === 'income') existingInc += t.nominal;
     else existingExp += t.nominal;
   });
 
-  // Agar Saldo Bersih saat ini persis = targetNominal, maka Saldo Awal = targetNominal + existingExp - existingInc
   const neededIncome = target + existingExp - existingInc;
+  const now = Date.now();
   if (neededIncome > 0) {
-    const now = Date.now();
     window.transactions.push({
       id: now,
       timestamp: now,
@@ -136,7 +117,6 @@ function setExactCashBalance(targetNominal) {
       nominal: neededIncome
     });
   } else if (neededIncome < 0) {
-    const now = Date.now();
     window.transactions.unshift({
       id: now,
       timestamp: now,
@@ -154,13 +134,14 @@ function setExactCashBalance(targetNominal) {
 
 function saveManualBalance() {
   const input = document.getElementById('manual-balance-input');
-  const val = cleanNominal(input ? input.value : 0);
-  if (!val || val < 0) {
+  const rawVal = input ? parseFloat(input.value) : 0;
+  if (isNaN(rawVal) || rawVal < 0) {
     return alert('Masukkan nominal saldo cash yang valid (contoh: 1000000).');
   }
+  const val = (rawVal > 0 && rawVal < 1000) ? rawVal * 1000 : rawVal;
   setExactCashBalance(val);
   closeManualBalanceModal();
-  appendChatMessage('assistant', `✅ **Saldo Cash Berhasil Diatur!**\n• **Saldo Cash Saat Ini:** Rp ${val.toLocaleString('id-ID')}\n\nSekarang silakan ketik atau ucapkan pengeluaran Anda (contoh: **"beli minum 10.000"**), maka saldo akan otomatis langsung berkurang.`);
+  appendChatMessage('assistant', `✅ **Saldo Cash Berhasil Diatur!**\n• **Saldo Cash Saat Ini:** Rp ${val.toLocaleString('id-ID')}\n\nSekarang setiap Anda mencatat pengeluaran (contoh: **"beli minum 10.000"**), saldo ini otomatis langsung berkurang.`);
 }
 
 // 1. Kompresi Gambar Otomatis via Canvas
@@ -174,16 +155,12 @@ function compressImage(file, maxDimension = 1024, quality = 0.8) {
       img.onload = () => {
         let width = img.width;
         let height = img.height;
-        if (width > height) {
-          if (width > maxDimension) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          }
-        } else {
-          if (height > maxDimension) {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
-          }
+        if (width > height && width > maxDimension) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else if (height >= width && height > maxDimension) {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
         }
         const canvas = document.createElement('canvas');
         canvas.width = width;
@@ -227,20 +204,9 @@ function cleanNominal(val) {
   return num;
 }
 
-// 3. Multi-Provider AI
-// ================= MULTI-PROVIDER AI KEYS (AMAN DARI GITHUB SCANNER) =================
-const KEY_OPENROUTER_1 = "sk-or-v1-" + "38d2e4834a9546f6ab214906a3dab2ad9cade40ad04ff89de7ccf82829d3ce62";
-const KEY_OPENROUTER_2 = "sk-or-v1-" + "fb4edea4b324d13a83e5985de81ade2d32c27021739f73328f1de23db04d1b39";
-const KEY_GROQ         = "gsk_" + "I1YOk9klQEAgJAgKI4j6WGdyb3FYf2OwMhcKcB5v0OYgrksnroen";
-const KEY_CEREBRAS     = "csk-" + "5v8wych83t556j3effjee49tjm3f9c8932vd9rem544vvnt5";
-const KEY_DEEPINFRA    = "X6Gxy6" + "NF6qaLZs1nyM4zNRIkyj4KOUF6";
-const KEY_SAMBANOVA    = "d88d9958-" + "8181-4f7f-9ff3-8983e8c2d011";
-const KEY_SILICONFLOW  = "sk-" + "ekkntgjgedxsatvnyjctrtygkucsaegzpvirresyxoniqzqi";
-const KEY_GITHUB       = "ghp_" + "lKZfDhrasCEdYokY5UINETtNm79ygP2AkeK4";
-const KEY_NVIDIA       = "nvapi-" + "3B_78vXvWUmct63A3YTpEgWLRt8gfwAvnJ-pGwfB4vYz0YSvCs6Hw5Vzn99Q9Gok";
-const KEY_POLLINATIONS = "sk_" + "gFc8ufbPUBPwnfAnuEyKHAbEo1Ic3Eex";
-
+// 3. Multi-Provider AI (Menggunakan kunci terpusat dari window.FINAI_KEYS)
 async function callMultiProviderAI(messages, isVision = false) {
+  const K = window.FINAI_KEYS || {};
   const orHeaders = {
     'Content-Type': 'application/json',
     'HTTP-Referer': window.location.origin,
@@ -248,130 +214,21 @@ async function callMultiProviderAI(messages, isVision = false) {
   };
 
   const routes = isVision ? [
-    // 1. OpenRouter Utama - Gemini 2.5 Flash (Vision Cepat & Akurat)
-    {
-      url: 'https://openrouter.ai/api/v1/chat/completions',
-      key: KEY_OPENROUTER_1,
-      model: 'google/gemini-2.5-flash',
-      headers: orHeaders
-    },
-    // 2. OpenRouter Cadangan - Gemini 2.5 Flash
-    {
-      url: 'https://openrouter.ai/api/v1/chat/completions',
-      key: KEY_OPENROUTER_2,
-      model: 'google/gemini-2.5-flash',
-      headers: orHeaders
-    },
-    // 3. Groq Cloud Vision - Llama 4 Scout Vision
-    {
-      url: 'https://api.groq.com/openai/v1/chat/completions',
-      key: KEY_GROQ,
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      headers: { 'Content-Type': 'application/json' }
-    },
-    // 4. OpenRouter Utama - Qwen 2.5 VL 72B Instruct
-    {
-      url: 'https://openrouter.ai/api/v1/chat/completions',
-      key: KEY_OPENROUTER_1,
-      model: 'qwen/qwen-2.5-vl-72b-instruct',
-      headers: orHeaders
-    },
-    // 5. GitHub Models - GPT-4o-Mini Vision
-    {
-      url: 'https://models.inference.ai.azure.com/chat/completions',
-      key: KEY_GITHUB,
-      model: 'gpt-4o-mini',
-      headers: { 'Content-Type': 'application/json' }
-    },
-    // 6. DeepInfra - Llama 3.2 11B Vision
-    {
-      url: 'https://api.deepinfra.com/v1/openai/chat/completions',
-      key: KEY_DEEPINFRA,
-      model: 'meta-llama/Llama-3.2-11B-Vision-Instruct',
-      headers: { 'Content-Type': 'application/json' }
-    },
-    // 7. OpenRouter Auto Router (Otomatis pilih model Vision yang aktif)
-    {
-      url: 'https://openrouter.ai/api/v1/chat/completions',
-      key: KEY_OPENROUTER_1,
-      model: 'openrouter/auto',
-      headers: orHeaders
-    }
+    { url: 'https://openrouter.ai/api/v1/chat/completions', key: K.OPENROUTER_1, model: 'google/gemini-2.5-flash', headers: orHeaders },
+    { url: 'https://openrouter.ai/api/v1/chat/completions', key: K.OPENROUTER_2, model: 'google/gemini-2.5-flash', headers: orHeaders },
+    { url: 'https://api.groq.com/openai/v1/chat/completions', key: K.GROQ, model: 'meta-llama/llama-4-scout-17b-16e-instruct', headers: { 'Content-Type': 'application/json' } },
+    { url: 'https://openrouter.ai/api/v1/chat/completions', key: K.OPENROUTER_1, model: 'qwen/qwen-2.5-vl-72b-instruct', headers: orHeaders },
+    { url: 'https://openrouter.ai/api/v1/chat/completions', key: K.OPENROUTER_1, model: 'openrouter/auto', headers: orHeaders }
   ] : [
-    // 1. Groq Cloud - Llama 3.3 70B Versatile (Respons < 1 Detik)
-    {
-      url: 'https://api.groq.com/openai/v1/chat/completions',
-      key: KEY_GROQ,
-      model: 'llama-3.3-70b-versatile',
-      headers: { 'Content-Type': 'application/json' }
-    },
-    // 2. OpenRouter Utama - Gemini 2.5 Flash
-    {
-      url: 'https://openrouter.ai/api/v1/chat/completions',
-      key: KEY_OPENROUTER_1,
-      model: 'google/gemini-2.5-flash',
-      headers: orHeaders
-    },
-    // 3. OpenRouter Cadangan - Gemini 2.5 Flash
-    {
-      url: 'https://openrouter.ai/api/v1/chat/completions',
-      key: KEY_OPENROUTER_2,
-      model: 'google/gemini-2.5-flash',
-      headers: orHeaders
-    },
-    // 4. Cerebras - Llama 3.3 70B (Super Cepat)
-    {
-      url: 'https://api.cerebras.ai/v1/chat/completions',
-      key: KEY_CEREBRAS,
-      model: 'llama-3.3-70b',
-      headers: { 'Content-Type': 'application/json' }
-    },
-    // 5. GitHub Models - GPT-4o-Mini
-    {
-      url: 'https://models.inference.ai.azure.com/chat/completions',
-      key: KEY_GITHUB,
-      model: 'gpt-4o-mini',
-      headers: { 'Content-Type': 'application/json' }
-    },
-    // 6. DeepInfra - Llama 3.3 70B Instruct
-    {
-      url: 'https://api.deepinfra.com/v1/openai/chat/completions',
-      key: KEY_DEEPINFRA,
-      model: 'meta-llama/Llama-3.3-70B-Instruct',
-      headers: { 'Content-Type': 'application/json' }
-    },
-    // 7. SambaNova - Meta Llama 3.3 70B Instruct
-    {
-      url: 'https://api.sambanova.ai/v1/chat/completions',
-      key: KEY_SAMBANOVA,
-      model: 'Meta-Llama-3.3-70B-Instruct',
-      headers: { 'Content-Type': 'application/json' }
-    },
-    // 8. OpenRouter Auto-Router (Anti-Model Expired)
-    {
-      url: 'https://openrouter.ai/api/v1/chat/completions',
-      key: KEY_OPENROUTER_1,
-      model: 'openrouter/auto',
-      headers: orHeaders
-    },
-    // 9. OpenRouter Cadangan Auto-Router
-    {
-      url: 'https://openrouter.ai/api/v1/chat/completions',
-      key: KEY_OPENROUTER_2,
-      model: 'openrouter/auto',
-      headers: orHeaders
-    },
-    // 10. Pollinations AI OpenAI Endpoint (Cadangan Terakhir Selalu Aktif)
-    {
-      url: 'https://text.pollinations.ai/openai',
-      key: KEY_POLLINATIONS,
-      model: 'openai',
-      headers: { 'Content-Type': 'application/json' }
-    }
+    { url: 'https://api.groq.com/openai/v1/chat/completions', key: K.GROQ, model: 'llama-3.3-70b-versatile', headers: { 'Content-Type': 'application/json' } },
+    { url: 'https://api.cerebras.ai/v1/chat/completions', key: K.CEREBRAS, model: 'llama-3.3-70b', headers: { 'Content-Type': 'application/json' } },
+    { url: 'https://openrouter.ai/api/v1/chat/completions', key: K.OPENROUTER_1, model: 'google/gemini-2.5-flash', headers: orHeaders },
+    { url: 'https://openrouter.ai/api/v1/chat/completions', key: K.OPENROUTER_2, model: 'openrouter/auto', headers: orHeaders }
   ];
 
   let lastError = null;
   for (const route of routes) {
+    if (!route.key) continue;
     try {
       const headers = Object.assign({ 'Authorization': `Bearer ${route.key.trim()}` }, route.headers);
       const res = await fetch(route.url, {
@@ -385,12 +242,10 @@ async function callMultiProviderAI(messages, isVision = false) {
         })
       });
       const data = await res.json();
-      if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+      if (data?.choices?.[0]?.message?.content) {
         return data.choices[0].message.content;
       }
-      if (data.error) {
-        lastError = data.error.message || JSON.stringify(data.error);
-      }
+      if (data?.error) lastError = data.error.message || JSON.stringify(data.error);
     } catch (err) {
       lastError = err.message;
     }
@@ -398,6 +253,7 @@ async function callMultiProviderAI(messages, isVision = false) {
   throw new Error(lastError || 'Semua penyedia AI sedang sibuk.');
 }
 
+// 4. Filter Periode Waktu (Hari Ini, Minggu Ini, Bulan Ini, Semua)
 function getFilteredTransactions() {
   const list = window.transactions || [];
   if (window.currentPeriod === 'all') return list;
@@ -405,7 +261,9 @@ function getFilteredTransactions() {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-  if (window.currentPeriod === 'today') return list.filter(t => (t.timestamp || t.id) >= startOfToday);
+  if (window.currentPeriod === 'today') {
+    return list.filter(t => (t.timestamp || t.id) >= startOfToday);
+  }
   if (window.currentPeriod === 'week') {
     const dayOfWeek = now.getDay() || 7;
     const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek + 1).getTime();
@@ -439,8 +297,9 @@ function renderAll() {
   if (window.chartInstance) updateChartData();
 }
 
+// 5. Normalisasi & Parser Regex Cadangan Offline
 function normalizeIndonesianWords(text) {
-  let s = text.toLowerCase()
+  let s = String(text || '').toLowerCase()
     .replace(/setengah juta/g, '500000')
     .replace(/sejuta/g, '1000000')
     .replace(/seratus ribu/g, '100000')
@@ -489,7 +348,6 @@ function parseNaturalLanguage(rawText) {
 
   if (!nominal || nominal <= 0) return null;
 
-  // Jika kalimat menyebutkan "saldo", "uang cash", "uang tunai", "uangku sekarang" -> langsung atur sebagai Saldo Cash Positif!
   const isBalanceCommand = /(saldo|uang\s*cash|uang\s*tunai|uang\s*sekarang|uangku\s*sekarang|kas\s*sekarang|modal\s*awal)/i.test(lower) && !/\b(beli|bayar|jajan|belanja)\b/i.test(lower);
   if (isBalanceCommand) {
     return {
@@ -536,7 +394,7 @@ function parseNaturalLanguage(rawText) {
 }
 
 function parseMultipleTransactions(rawText) {
-  const parts = rawText
+  const parts = String(rawText || '')
     .split(/\s+(?:dan|terus|lalu|serta|kemudian)\s+|,\s*/i)
     .map(s => s.trim())
     .filter(Boolean);
@@ -579,7 +437,7 @@ function getCurrentTotalBalance() {
 async function handleUserInput(e) {
   if (e) e.preventDefault();
   const inputEl = document.getElementById('chat-input');
-  const text = inputEl.value.trim();
+  const text = inputEl ? inputEl.value.trim() : '';
   if (!text) return;
 
   appendChatMessage('user', text);
@@ -592,7 +450,6 @@ async function handleUserInput(e) {
         setExactCashBalance(item.targetBalance);
         return `✅ **Saldo Cash Diatur!**\n• **Saldo Cash Saat Ini:** Rp ${item.targetBalance.toLocaleString('id-ID')}`;
       }
-
       const trx = recordTransaction(item);
       const sisaSaldo = getCurrentTotalBalance();
       const typeLabel = trx.type === 'income' ? 'Pemasukan (+)' : 'Pengeluaran (-)';
@@ -625,16 +482,17 @@ function toggleVoiceRecording(forceState) {
   const btn = document.getElementById('btn-voice');
   if (!window.recognition) return alert('Fitur suara tidak didukung di peramban ini.');
   if (forceState === false) {
-    btn.classList.remove('recording-active');
+    btn?.classList.remove('recording-active');
     try { window.recognition.stop(); } catch (e) {}
     return;
   }
-  btn.classList.add('recording-active');
+  btn?.classList.add('recording-active');
   try { window.recognition.start(); } catch (e) {}
 }
 
 function appendChatMessage(role, text, id = null) {
   const box = document.getElementById('chat-box');
+  if (!box) return;
   const isUser = role === 'user';
   const div = document.createElement('div');
   if (id) div.id = id;
@@ -671,8 +529,8 @@ async function requestAiAudit() {
 
   const box = document.getElementById('ai-insight-box');
   const btn = document.getElementById('btn-audit');
-  btn.disabled = true;
-  box.textContent = '🧠 Sedang menganalisis data periode terpilih...';
+  if (btn) btn.disabled = true;
+  if (box) box.textContent = '🧠 Sedang menganalisis data periode terpilih...';
 
   const expList = currentList.filter(t => t.type === 'expense');
   const incList = currentList.filter(t => t.type === 'income');
@@ -688,11 +546,11 @@ async function requestAiAudit() {
       { role: 'system', content: 'Anda konsultan keuangan pribadi profesional. Berikan jawaban padat dan terstruktur.' },
       { role: 'user', content: prompt }
     ], false);
-    box.textContent = reply;
+    if (box) box.textContent = reply;
   } catch (err) {
-    box.textContent = `⚠️ Analisis gagal: ${err.message}`;
+    if (box) box.textContent = `⚠️ Analisis gagal: ${err.message}`;
   } finally {
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -705,9 +563,12 @@ function renderSummary() {
     else exp += t.nominal;
   });
 
-  document.getElementById('stat-balance').textContent = `Rp ${(inc - exp).toLocaleString('id-ID')}`;
-  document.getElementById('stat-income').textContent = `Rp ${inc.toLocaleString('id-ID')}`;
-  document.getElementById('stat-expense').textContent = `Rp ${exp.toLocaleString('id-ID')}`;
+  const balEl = document.getElementById('stat-balance');
+  const incEl = document.getElementById('stat-income');
+  const expEl = document.getElementById('stat-expense');
+  if (balEl) balEl.textContent = `Rp ${(inc - exp).toLocaleString('id-ID')}`;
+  if (incEl) incEl.textContent = `Rp ${inc.toLocaleString('id-ID')}`;
+  if (expEl) expEl.textContent = `Rp ${exp.toLocaleString('id-ID')}`;
   injectManualBalanceUI();
 }
 
@@ -914,6 +775,7 @@ function deleteTransaction(id) {
   renderAll();
 }
 
+// Navigasi 4 Tab Utama (Catat, Analisis, Impian, Riwayat)
 function switchTab(selectedTab) {
   const tabs = ['chat', 'charts', 'goals', 'history'];
   tabs.forEach(t => {
@@ -921,11 +783,11 @@ function switchTab(selectedTab) {
     const btn = document.getElementById(`tab-btn-${t}`);
 
     if (t === selectedTab) {
-      section.classList.remove('hidden');
-      btn.className = 'py-2 font-bold rounded-xl text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 transition flex items-center justify-center gap-1';
+      section?.classList.remove('hidden');
+      if (btn) btn.className = 'py-2 font-bold rounded-xl text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 transition flex items-center justify-center gap-1';
     } else {
-      section.classList.add('hidden');
-      btn.className = 'py-2 font-bold rounded-xl text-[11px] text-slate-400 bg-slate-950 border border-slate-800 transition flex items-center justify-center gap-1';
+      section?.classList.add('hidden');
+      if (btn) btn.className = 'py-2 font-bold rounded-xl text-[11px] text-slate-400 bg-slate-950 border border-slate-800 transition flex items-center justify-center gap-1';
     }
   });
 
@@ -934,12 +796,14 @@ function switchTab(selectedTab) {
     updateChartData();
   } else if (selectedTab === 'goals') {
     renderGoals();
+  } else if (selectedTab === 'history') {
+    renderHistoryTable();
   }
 }
 
 function initChart() {
   const ctx = document.getElementById('categoryChart');
-  if (!ctx) return;
+  if (!ctx || typeof Chart === 'undefined') return;
   window.chartInstance = new Chart(ctx.getContext('2d'), {
     type: 'doughnut',
     data: {
@@ -975,11 +839,11 @@ function updateChartData() {
   const chartEl = document.getElementById('categoryChart');
 
   if (d.length === 0) {
-    emptyEl.classList.remove('hidden');
-    chartEl.classList.add('hidden');
+    emptyEl?.classList.remove('hidden');
+    chartEl?.classList.add('hidden');
   } else {
-    emptyEl.classList.add('hidden');
-    chartEl.classList.remove('hidden');
+    emptyEl?.classList.add('hidden');
+    chartEl?.classList.remove('hidden');
     window.chartInstance.data.labels = Object.keys(m);
     window.chartInstance.data.datasets[0].data = d;
     window.chartInstance.update();
@@ -989,51 +853,28 @@ function updateChartData() {
 async function handleReceiptUpload(event, mode = 'physical') {
   const file = event.target.files[0];
   if (!file) return;
-
   const loaderId = 'loader-' + Date.now();
-  const label = mode === 'digital' ? 'screenshot resi transfer / QRIS / E-Wallet...' : 'total belanja struk kasir...';
-  appendChatMessage('assistant', `📷 Membaca ${label}`, loaderId);
-
+  appendChatMessage('assistant', '📷 Memindai struk...', loaderId);
   try {
     const base64Img = await compressImage(file, 1024, 0.8);
-    const promptText = mode === 'digital'
-      ? `Anda adalah OCR pembaca bukti transfer / QRIS / E-Wallet Indonesia. Kembalikan JSON persis: {"description": "Nama Merchant / Penerima", "nominal": 50000, "type": "expense", "category": "Keluarga & Transfer"}`
-      : `Ekstrak nama toko dan TOTAL AKHIR belanja dari foto struk ini. Kembalikan JSON persis: {"description": "Nama Toko", "nominal": 25000, "type": "expense", "category": "Belanja Harian"}`;
-
     const rawContent = await callMultiProviderAI([{
       role: 'user',
       content: [
-        { type: 'text', text: promptText },
+        { type: 'text', text: 'Ekstrak toko & total nominal belanja ke JSON: {"description":"Toko","nominal":25000,"type":"expense","category":"Belanja Harian"}' },
         { type: 'image_url', image_url: { url: base64Img } }
       ]
     }], true);
-
     document.getElementById(loaderId)?.remove();
-
-    let detected = null;
     const jsonMatch = rawContent.match(/\{[\s\S]*?\}/);
     if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0]);
-        const cleanedNominal = cleanNominal(parsed.nominal || parsed.total || parsed.amount);
-        if (cleanedNominal > 0) {
-          detected = {
-            description: parsed.description || parsed.merchant || (mode === 'digital' ? 'Transfer / QRIS' : 'Struk Belanja'),
-            nominal: cleanedNominal,
-            type: parsed.type || 'expense',
-            category: parsed.category || (mode === 'digital' ? 'Keluarga & Transfer' : 'Belanja Harian')
-          };
-        }
-      } catch (err) {}
-    }
-
-    if (detected && detected.nominal > 0) {
-      const trx = recordTransaction(detected);
-      const sisa = getCurrentTotalBalance();
-      const badge = mode === 'digital' ? '📱 Resi Digital' : '🧾 Struk Kasir';
-      appendChatMessage('assistant', `✅ **${badge} Terdeteksi!**\n• **Item:** ${trx.description}\n• **Kategori:** ${trx.category}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}\n• **Sisa Saldo Cash:** Rp ${sisa.toLocaleString('id-ID')}`);
-    } else {
-      appendChatMessage('assistant', '⚠️ Gagal membaca nominal pada gambar. Pastikan bagian total nominal terlihat jelas.');
+      const parsed = JSON.parse(jsonMatch[0]);
+      const trx = recordTransaction({
+        description: parsed.description || 'Struk Belanja',
+        nominal: cleanNominal(parsed.nominal || parsed.total),
+        type: parsed.type || 'expense',
+        category: parsed.category || 'Belanja Harian'
+      });
+      appendChatMessage('assistant', `✅ **Struk Dicatat!**\n• **Item:** ${trx.description}\n• **Nominal:** Rp ${trx.nominal.toLocaleString('id-ID')}`);
     }
   } catch (err) {
     document.getElementById(loaderId)?.remove();
